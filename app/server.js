@@ -191,14 +191,22 @@ function startRound(r) {
     p.lastFart = 0;
     send(p.ws, "role", { role: p.role, hand: p.hand, nbFarters, cooldown: CFG.cooldown / 1000 });
   });
-  // Programme des débats de la manche
-  const [da, db] = placer(r, alive);
-  r.debats = [{
-    i: 1, a: da.id, b: db.id, motion: programmeMotions(r, 1)[0],
-    // le camp est tiré au sort : personne ne choisit sa position
-    pour: Math.random() < 0.5 ? da.id : db.id
-  }];
-  r.debats.forEach(d => { d.contre = d.a === d.pour ? d.b : d.a; });
+  // Programme des débats de la manche.
+  // Il faut deux intervenants ET au moins un auditeur : à deux joueurs, le vote
+  // du débat n'aurait personne pour le rendre. En dessous, on place quand même
+  // les joueurs (le plan de salle doit être cohérent) mais on saute le débat.
+  if (alive.length >= 3) {
+    const [da, db] = placer(r, alive);
+    r.debats = [{
+      i: 1, a: da.id, b: db.id, motion: programmeMotions(r, 1)[0],
+      // le camp est tiré au sort : personne ne choisit sa position
+      pour: Math.random() < 0.5 ? da.id : db.id
+    }];
+    r.debats.forEach(d => { d.contre = d.a === d.pour ? d.b : d.a; });
+  } else {
+    r.debats = [];
+    melanger([0, 1, 2, 3, 4, 5]).forEach((siege, i) => { if (alive[i]) alive[i].seat = siege; });
+  }
   r.di = -1; r.debat = null; r.sousPhase = null; r.motion = null;
 
   // ATTENTION à l'ordre : schedule() pose r.endsAt, sync() le diffuse. L'inverse
@@ -482,7 +490,11 @@ wss.on("connection", (ws) => {
         }
         break;
       case "start":
-        if (me.id === r.hostId && r.phase === "lobby" && r.players.size >= 3) startRound(r);
+        // Aucun minimum : on doit pouvoir ouvrir une séance seul pour tester la
+        // chaîne audio, le placement et le rendu sans réunir cinq personnes. Le
+        // jeu n'a d'intérêt qu'à partir de cinq, mais c'est un avertissement à
+        // l'écran, pas un verrou.
+        if (me.id === r.hostId && r.phase === "lobby" && r.players.size >= 1) startRound(r);
         break;
       case "fart": {
         if (r.phase !== "meeting" || r.eliminated.has(me.id)) return;

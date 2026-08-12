@@ -158,6 +158,9 @@ a{color:var(--ardoise)}
 /* ---------- niveau micro ---------- */
 .jauge{position:relative;height:6px;background:var(--papier-alt);border:1px solid var(--filet);border-radius:4px;overflow:hidden}
 .jauge::after{content:"";position:absolute;top:-1px;bottom:-1px;width:2px;background:var(--rouille);left:var(--seuil,7%)}
+/* la jauge de sortie n'a pas de seuil réglable : pas de repère */
+.jauge.sortie::after{display:none}
+.jauge.sortie i{transition:width .18s,background .18s}
 .jauge i{display:block;height:100%;width:0;background:var(--sauge);transition:width .1s}
 .reglage{margin-top:16px;background:var(--papier-alt);border:1px solid var(--filet);border-radius:10px;padding:12px 15px}
 .reglage input[type=range]{width:100%;accent-color:var(--sauge)}
@@ -270,6 +273,17 @@ svg.tbl{width:100%;display:block}
 .sp.moi{fill:var(--sauge);font-weight:600}
 .siege{cursor:default}.siege.votable{cursor:pointer}
 .siege.votable:hover circle.pl{stroke:var(--rouille);stroke-width:3}
+
+/* ---------- réglages repliés ---------- */
+/* Pendant la séance, ces curseurs ne servent plus : ils se règlent une fois, à
+   l'accueil. Repliés, ils libèrent la colonne pour ce qui compte à cet instant. */
+.reglages{border:1px solid var(--filet);border-radius:10px;background:var(--papier-clair);padding:10px 13px}
+.reglages summary{cursor:pointer;font-family:var(--mono);font-size:10px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.13em;color:var(--encre-mute);list-style:none}
+.reglages summary::-webkit-details-marker{display:none}
+.reglages summary::before{content:"▸ ";color:var(--sauge)}
+.reglages[open] summary::before{content:"▾ "}
+.reglages .reglage{margin-top:12px}
 
 /* ---------- annonce de phase ---------- */
 /* Un panneau qui dit ce qu'il faut faire MAINTENANT, deux secondes et demie, puis
@@ -704,7 +718,7 @@ tr.exclu .nom{text-decoration:line-through;text-decoration-color:var(--rouille);
 
     <!-- COLONNE GAUCHE — ce qu'on perçoit -->
     <div class="col">
-      <div class="plan">
+      <div class="plan" id="plancarte">
         <div class="plan-tete"><span>Plan de salle</span><span id="plancapt">6 places</span></div>
         <div id="tblbox"></div>
       </div>
@@ -754,26 +768,40 @@ tr.exclu .nom{text-decoration:line-through;text-decoration-color:var(--rouille);
 
     <!-- COLONNE DROITE — les outils -->
     <div class="col col-outils">
-      <div class="carnet">
+      <div class="carnet" id="carnetbox">
         <div class="carnet-tete">Carnet de séance — usage strictement personnel</div>
         <textarea id="carnet" placeholder="P3 a toussé juste avant… &#10;le 2e venait de ma gauche"></textarea>
       </div>
 
-      <div>
+      <div id="micbox">
         <label class="label">Votre micro</label>
         <div class="jauge"><i id="lvl1"></i></div>
         <p class="parole" id="speechinfo"></p>
+        <label class="label" style="margin-top:12px">Ce que la table reçoit</label>
+        <div class="jauge sortie"><i id="lvlout"></i></div>
+        <p class="aide" id="emisinfo" style="margin-top:6px">—</p>
       </div>
-      <div class="reglage" style="margin-top:0">
-        <label class="label" style="margin-bottom:8px">Seuil d'ouverture du micro — <span class="seuilval">22</span></label>
-        <input class="seuilsl" type="range" min="0" max="100" step="1" value="22" oninput="appliquerSeuil(+this.value)">
-        <p class="aide" style="margin-bottom:0">La jauge passe au vert quand le micro s'ouvre. Montez le seuil
-        jusqu'à ce qu'elle reste grise quand vous tapez au clavier, et verte dès que vous parlez.</p>
-      </div>
-      <div class="reglage" style="margin-top:0">
-        <label class="label" style="margin-bottom:8px">Volume des voix — <span class="volval">100 %</span></label>
-        <input class="volsl" type="range" min="0" max="300" step="10" value="100" oninput="applyVol(+this.value)">
-      </div>
+
+      <details class="reglages" id="reglagesbox">
+        <summary>Réglages audio</summary>
+        <div class="reglage" style="margin-top:12px">
+          <label class="label" style="margin-bottom:8px">Seuil d'ouverture du micro — <span class="seuilval">22</span></label>
+          <input class="seuilsl" type="range" min="0" max="100" step="1" value="22" oninput="appliquerSeuil(+this.value)">
+          <p class="aide" style="margin-bottom:0">La jauge passe au vert quand le micro s'ouvre. Montez le seuil
+          jusqu'à ce qu'elle reste grise quand vous tapez au clavier, et verte dès que vous parlez.</p>
+        </div>
+        <div class="reglage">
+          <label class="label" style="margin-bottom:8px">Volume des voix — <span class="volval">100 %</span></label>
+          <input class="volsl" type="range" min="0" max="300" step="10" value="100" oninput="applyVol(+this.value)">
+        </div>
+        <div class="reglage">
+          <label class="label" style="margin-bottom:8px">Secours</label>
+          <button class="btn" id="btnsecours" style="padding:7px 12px;font-size:11px"
+            onclick="basculerSecours()">Forcer l'émission brute</button>
+          <p class="aide" style="margin-bottom:0">À n'utiliser que si la jauge « ce que la table reçoit »
+          reste grise alors que vous parlez : votre voix partira sans traitement, donc avec le bruit de fond.</p>
+        </div>
+      </details>
     </div>
   </div>
 </section>

@@ -67,10 +67,22 @@ async function initAudio() {
     keep.connect(kg).connect(AC.destination); keep.start();
   } catch {}
 
-  // Bus des voix : limiteur souple pour pouvoir pousser le niveau sans saturer.
+  // Bus des voix : LIMITEUR de protection, et rien d'autre.
+  //
+  // Il y avait ici un compresseur à -14 dB et 6:1 sur la somme de toutes les voix.
+  // Sur un bus partagé, c'est une porte de priorité déguisée : dès qu'une personne
+  // parle fort, la réduction de gain s'applique à TOUT le bus, donc aussi aux
+  // autres voix, jusqu'à une dizaine de décibels. En partie, ça s'entend comme
+  // « le premier qui parle prend le canal et bloque les autres » — et c'était
+  // exactement ça. La mise en forme de chaque voix se fait désormais dans sa
+  // propre chaîne, avant le mélange.
+  //
+  // Ce qui reste ne sert qu'à empêcher la saturation quand cinq personnes parlent
+  // en même temps : seuil haut, attaque courte, et une détente lente pour que le
+  // gain ne « pompe » pas entre deux syllabes.
   const comp = AC.createDynamicsCompressor();
-  comp.threshold.value = -14; comp.knee.value = 8; comp.ratio.value = 6;
-  comp.attack.value = 0.004; comp.release.value = 0.18;
+  comp.threshold.value = -3; comp.knee.value = 2; comp.ratio.value = 12;
+  comp.attack.value = 0.003; comp.release.value = 0.35;
   voiceGain = AC.createGain();
   voiceGain.gain.value = VOL_BASE * volPct / 100;
   comp.connect(voiceGain).connect(AC.destination);
@@ -84,6 +96,7 @@ async function initAudio() {
   await ouvrirMicro(localStorage.getItem("qafc_micro") || undefined);
   majMicro();
   startVAD();
+  surveillerEmission();
   gardeEveil();
 }
 
@@ -357,7 +370,10 @@ function startVAD() {
       const b = new Float32Array(anPorte.fftSize);
       anPorte.getFloatTimeDomainData(b);
       let q = 0; for (let i = 0; i < b.length; i++) q += b[i] * b[i];
-      lvl = Math.max(Math.sqrt(q / b.length), lvl * 0.82);
+      const rmsPre = Math.sqrt(q / b.length);
+      if (rmsPre > Math.max(seuilRms(), 0.006)) micActifDepuis = Date.now();
+      if (rmsPre > 0.012) captureDepuis = Date.now();   // le micro capte, seuil ou pas
+      lvl = Math.max(rmsPre, lvl * 0.82);
       const pct = Math.min(100, lvl * 700);
       document.querySelectorAll(".jauge i").forEach(e => {
         e.style.width = pct + "%";
@@ -370,6 +386,7 @@ function startVAD() {
     let s = 0; for (let i = 0; i < buf.length; i++) s += buf[i] * buf[i];
     const rms = Math.sqrt(s / buf.length);
     if (micTrack && micTrack.enabled && rms > 0.012) speechAcc += 200;
+    majJaugeEmission();
     // niveau réellement reçu de chaque pair
     peers.forEach(p => {
       if (!p.an) return;
@@ -499,6 +516,14 @@ function attachPeerAudio(id, stream, seat) {
   const pres = AC.createBiquadFilter();
   pres.type = "peaking"; pres.frequency.value = 2600; pres.Q.value = 0.9; pres.gain.value = 4;
 
+  // Compression PAR VOIX, pas sur le mélange. C'est ce qui égalise un interlocuteur
+  // trop loin de son micro sans toucher au niveau de qui que ce soit d'autre.
+  // Réglage doux : on rattrape les écarts, on n'écrase pas la dynamique — la
+  // dynamique est justement ce qui permet de situer un son dans la pièce.
+  const cvx = AC.createDynamicsCompressor();
+  cvx.threshold.value = -20; cvx.knee.value = 14; cvx.ratio.value = 2;
+  cvx.attack.value = 0.008; cvx.release.value = 0.26;
+
   const pan = AC.createPanner();
   pan.panningModel = "HRTF"; pan.distanceModel = "inverse";
   // Atténuation de distance volontairement adoucie : l'écart voisin/vis-à-vis
@@ -508,8 +533,11 @@ function attachPeerAudio(id, stream, seat) {
   const pos = xyz(rel === 0 ? 3 : rel);
   if (pan.positionX) { pan.positionX.value = pos.x; pan.positionY.value = pos.y; pan.positionZ.value = pos.z; }
   else pan.setPosition(pos.x, pos.y, pos.z);
-  const g = AC.createGain(); g.gain.value = 1.0;
-  src.connect(hp).connect(pres).connect(pan).connect(g).connect(voiceBus);
+  // Rattrapage : le compresseur de voix n'a pas de gain de compensation intégré,
+  // et l'ancien compresseur de bus, lui, remontait tout. Sans ces +5,6 dB, la
+  // suppression du ducking se traduirait par « tout le monde est moins fort ».
+  const g = AC.createGain(); g.gain.value = 1.9;
+  src.connect(hp).connect(pres).connect(cvx).connect(pan).connect(g).connect(voiceBus);
 
   // Analyseur sur la voix REÇUE : c'est le seul moyen de savoir si du son arrive
   // vraiment. Une connexion "connected" peut être parfaitement muette.
@@ -538,6 +566,21 @@ function makePeer(id, seat, initiator) {
   p.stats = setInterval(async () => {
     try {
       const st = await pc.getStats();
+      // Niveau réellement ÉMIS, mesuré par le moteur WebRTC lui-même sur la piste
+      // qui part. C'est la seule mesure qui distingue « mon micro fonctionne » de
+      // « ma voix quitte la machine » : les jauges locales lisent le graphe audio,
+      // pas la piste envoyée, et peuvent donc bouger alors que rien ne sort.
+      st.forEach(r => {
+        if ((r.type === "media-source" || r.type === "outbound-rtp") && r.kind === "audio") {
+          if (typeof r.audioLevel === "number") {
+            niveauEmis = Math.max(niveauEmis, r.audioLevel); mesureEmission = Date.now();
+          }
+          if (typeof r.totalAudioEnergy === "number") {
+            if (energieEmise != null && r.totalAudioEnergy > energieEmise + 1e-6) niveauEmis = Math.max(niveauEmis, 0.02);
+            energieEmise = r.totalAudioEnergy; mesureEmission = Date.now();
+          }
+        }
+      });
       let paire = null;
       st.forEach(r => {
         if (r.type === "candidate-pair" && (r.selected || r.state === "succeeded" && r.nominated)) paire = r;
@@ -716,10 +759,25 @@ function drawTable(votable) {
   const autres = (STATE.seats || []).filter(s => s && s.id !== ME);
   const pb = autres.filter(s => ["sourd", "hs"].includes(peerHealth(s.id)));
   if (pb.length) {
-    const relais = autres.some(s => { const p = peers.get(s.id); return p && p.voie === "relay"; });
-    h += `<p class="diag"><b>Aucun son reçu de : ${pb.map(s => esc(s.nom)).join(", ")}</b><br>
-      <span class="small">Sa voix ne vous parvient pas, même s'il parle. Son micro n'est pas en cause.
-      ${relais ? "" : "Aucune liaison ne passe par un relais TURN : c'est la cause la plus probable."}</span></p>`;
+    // Distinction essentielle, et que le message précédent ratait complètement :
+    // une liaison ICE porte les DEUX sens. Si elle est établie, le transport
+    // fonctionne, et le TURN n'y est pour rien — le défaut est à l'émission, chez
+    // celui qu'on n'entend pas. Le TURN n'est en cause que si rien ne s'établit.
+    const etabli = (id) => { const p = peers.get(id); return p && p.st === "connected"; };
+    const coupes = pb.filter(s => !etabli(s.id));
+    const muets  = pb.filter(s => etabli(s.id));
+    if (muets.length) {
+      h += `<p class="diag"><b>Aucun son reçu de : ${muets.map(s => esc(s.nom)).join(", ")}</b><br>
+        <span class="small">La liaison est pourtant établie, dans les deux sens. Ce n'est donc pas le
+        réseau : c'est sa voix qui ne quitte pas sa machine. Qu'il regarde sa jauge
+        « ce que la table reçoit » et, si elle reste grise pendant qu'il parle,
+        qu'il force l'émission brute.</span></p>`;
+    }
+    if (coupes.length) {
+      h += `<p class="diag"><b>Liaison impossible avec : ${coupes.map(s => esc(s.nom)).join(", ")}</b><br>
+        <span class="small">Aucune connexion ne s'établit. C'est le cas que seul un relais TURN
+        peut résoudre.</span></p>`;
+    }
   } else if (autres.length) {
     const voies = {};
     autres.forEach(s => { const p = peers.get(s.id); const v = (p && p.voie) || "?"; voies[v] = (voies[v] || 0) + 1; });
@@ -952,6 +1010,166 @@ function majAppelPlan(votable) {
   } else if (ap) ap.remove();
 }
 
+
+// ---------------------------------------------------------------------------
+// Surveillance de l'émission — et secours automatique
+//
+// Cas observé en partie : A entend B, B n'entend jamais A, alors que les jauges
+// de A bougent et que la liaison est établie « en direct (NAT traversé) ». Une
+// liaison ICE porte les DEUX sens : si le son passe dans un sens, le transport
+// fonctionne, et le TURN n'est pas en cause. Le défaut est donc à l'ÉMISSION.
+//
+// Ce que A envoie n'est pas son micro brut mais la sortie du graphe WebAudio
+// (filtres, compresseur, porte de bruit). Sur certains navigateurs, cette piste
+// synthétique part muette dans WebRTC alors que le graphe fonctionne — l'écoute
+// de sa propre voix (sidetone) sort de la carte son, pas du réseau, et ne prouve
+// donc rien.
+//
+// On mesure ici ce qui sort réellement, et si le micro est actif depuis plusieurs
+// secondes sans que rien ne parte, on bascule sur la piste micro BRUTE. On perd
+// la porte de bruit et le compresseur, on garde la voix. C'est le bon compromis.
+// ---------------------------------------------------------------------------
+let niveauEmis = 0, energieEmise = null, mesureEmission = 0;
+let soucisEmission = 0;
+let micActifDepuis = 0, captureDepuis = 0, emisVuLe = 0, secoursActif = false, secoursTimer = null;
+
+function basculerSecours(manuel) {
+  if (secoursActif || !micTrack) return;
+  secoursActif = true;
+  peers.forEach(p => {
+    try {
+      const e = p.pc.getSenders().find(x => x.track && x.track.kind === "audio");
+      if (e) e.replaceTrack(micTrack);
+    } catch {}
+  });
+  bandeauReseau(`<b>Émission de secours activée.</b> Votre voix ne quittait pas votre machine :
+    le traitement du micro est contourné, elle part maintenant en direct. Le filtrage du bruit
+    de fond n'est plus appliqué${manuel ? "" : " — bascule automatique"}.`, "");
+  const b = $("#btnsecours"); if (b) { b.textContent = "Émission brute active"; b.disabled = true; }
+}
+window.basculerSecours = () => basculerSecours(true);
+
+function surveillerEmission() {
+  if (secoursTimer) return;
+  secoursTimer = setInterval(() => {
+    if (!peers.size || secoursActif) return;
+    // au moins un pair réellement connecté : sinon le problème est ailleurs
+    let connecte = false;
+    peers.forEach(p => { if (p.st === "connected") connecte = true; });
+    if (!connecte) { niveauEmis = 0; return; }
+
+    if (niveauEmis > 0.002) { emisVuLe = Date.now(); }
+    niveauEmis = 0;
+
+    // le micro capte-t-il vraiment quelque chose en ce moment ?
+    const micVivant = micActifDepuis && Date.now() - micActifDepuis < 3000;
+    if (!micVivant) return;
+    // Si le navigateur n'expose aucune mesure d'émission, on ne conclut RIEN :
+    // basculer sur une supposition ferait plus de mal que de bien.
+    if (!mesureEmission || Date.now() - mesureEmission > 8000) return;
+    const silenceEmission = Date.now() - (emisVuLe || dateEcoute);
+    if (silenceEmission > 9000) basculerSecours(false);
+  }, 1500);
+}
+let dateEcoute = Date.now();
+
+// Jauge « ce qui sort », affichée à côté de « votre micro ». C'est le seul
+// indicateur qui dit à un joueur si la table peut l'entendre.
+function majJaugeEmission() {
+  const el = $("#lvlout"); if (!el) return;
+  const actif = Date.now() - emisVuLe < 2500;
+  el.style.width = (actif ? 100 : 0) + "%";
+  el.style.background = actif ? "var(--sauge)" : "var(--filet)";
+  const t = $("#emisinfo");
+  if (t) {
+    const capte = Date.now() - captureDepuis < 1500;
+    if (!peers.size) t.textContent = "Aucun autre participant pour l'instant.";
+    else if (secoursActif) t.textContent = "Émission brute (secours) — votre voix part sans traitement.";
+    else if (actif) t.textContent = "Votre voix quitte bien votre machine.";
+    else if (capte && !porteOuverte) {
+      // Diagnostic le plus fréquent, et le plus facile à corriger soi-même — à
+      // condition que le curseur soit atteignable. On déplie donc les réglages,
+      // même dans les phases où ils sont normalement escamotés.
+      t.innerHTML = "<b>Votre seuil est trop haut.</b> Le micro capte votre voix mais ne s'ouvre pas : baissez le curseur dans les réglages ci-dessous jusqu'à ce que la jauge passe au vert quand vous parlez.";
+      soucisEmission = Date.now();
+      const rg = $("#reglagesbox");
+      if (rg) { rg.classList.remove("hide"); rg.open = true; }
+    }
+    else if (capte) t.textContent = "Le micro s'ouvre, mais rien ne part encore — patientez deux secondes.";
+    else t.textContent = "Rien ne part pour l'instant — c'est normal si vous ne parlez pas.";
+  }
+}
+
+
+// ---------------------------------------------------------------------------
+// Visibilité — une seule autorité
+//
+// Principe : à chaque instant, l'écran ne montre que ce dont CE joueur a besoin
+// pour CETTE phase, dans SON rôle. Tout le reste disparaît. Un élément affiché
+// « au cas où » est un élément que le joueur doit écarter mentalement, et c'est
+// ce coût-là qui rendait l'interface illisible.
+//
+// Toutes les décisions sont ici, en un seul endroit : c'est la seule façon de
+// pouvoir répondre à « pourquoi je vois ça maintenant ? ».
+// ---------------------------------------------------------------------------
+function majVisibilite() {
+  if (!STATE) return;
+  const ph = STATE.phase, sp = STATE.sousPhase || "";
+  const enSeance = ph === "meeting";
+  const auScrutin = ph === "vote";
+  const jeDebats = !!(maTribune && STATE.debat && maTribune.i === STATE.debat.i);
+
+  const mq = (sel, montre) => { const e = $(sel); if (e) e.classList.toggle("hide", !montre); };
+
+  // Plan de salle — l'outil de perception, et la cible du vote. Inutile à
+  // l'ouverture, où il n'y a encore rien à situer.
+  mq("#plancarte", enSeance || auScrutin);
+
+  // Pression — au responsable seul, et seulement tant qu'il peut agir dessus.
+  mq("#pressionbox", estPeteur && enSeance);
+
+  // Mandat — remplacé par l'aide-mémoire dès que la séance s'ouvre.
+  mq("#rolebox", ph === "intro");
+
+  // Dossier de pièces — jouable en séance uniquement. Pendant qu'on est jugé au
+  // débat, on garde ses pièces : c'est le seul moment où les lâcher est habile.
+  mq("#handbox", enSeance);
+
+  // Carnet — on y note ce qu'on entend, et on le relit pour voter. Nulle part
+  // ailleurs.
+  mq("#carnetbox", enSeance || auScrutin);
+
+  // Jauges micro — visibles tant qu'on peut parler ; muettes à l'ouverture et
+  // pendant la suspension, où elles n'informent de rien.
+  mq("#micbox", enSeance || auScrutin);
+
+  // Réglages — on les règle une fois, à l'accueil. En séance ils sont repliés,
+  // accessibles en un clic si quelque chose cloche.
+  // …sauf si l'émission pose problème : dans ce cas les curseurs sont la solution,
+  // et les cacher reviendrait à décrire une panne sans donner l'outil pour la lever.
+  const souci = Date.now() - soucisEmission < 15000;
+  const rg = $("#reglagesbox");
+  if (rg) {
+    rg.classList.toggle("hide", !(enSeance || auScrutin) && !souci);
+    if ((enSeance || auScrutin) && !souci) rg.open = false;
+  }
+
+  // Aide-mémoire — masqué pendant le débat et son scrutin : la tribune dit déjà
+  // quoi faire, et deux consignes concurrentes valent moins qu'une.
+  mq("#memobox", (enSeance && !["debat", "vote-debat"].includes(sp)) || auScrutin);
+
+  // Chronomètre — il n'a de sens que si une échéance existe.
+  const ch = $("#gtime");
+  if (ch) ch.classList.toggle("hide", !STATE.endsAt);
+
+  // Pendant le débat, celui qui parle n'a rien d'autre à faire que parler : on
+  // efface le reste de la colonne de droite pour qu'il ne cherche pas ailleurs.
+  if (enSeance && sp === "debat" && jeDebats) {
+    mq("#carnetbox", false);
+    if (!souci) mq("#reglagesbox", false);
+  }
+}
+
 const PHASES = {
   intro: "Ouverture de séance", meeting: "Séance en cours", blanc: "Suspension",
   vote: "Scrutin", results: "Procès-verbal", final: "Clôture"
@@ -994,14 +1212,17 @@ function renderState() {
       `<li><span class="num">SIÈGE ${String(s.seat + 1).padStart(2, "0")}</span>
         <span class="sig">${esc(s.nom)}</span>
         <span class="role">${s.id === STATE.hostId ? "président" : "membre"}</span></li>`).join("");
-    $("#lhint").textContent = n < 3
-      ? "Trois participants au minimum pour ouvrir la séance."
-      : (n < 5 ? "En dessous de cinq participants, l'identification est très difficile. Six est l'effectif nominal."
-               : "Effectif suffisant. La séance peut être ouverte.");
+    // Plus aucun verrou sur l'effectif : on doit pouvoir ouvrir seul pour vérifier
+    // le son, le placement et le rendu. L'avertissement remplace l'interdiction.
+    $("#lhint").textContent = n < 2
+      ? "Séance d'essai en solo. Pas de débat, pas de vote — mais tout le reste fonctionne."
+      : n < 3 ? "À deux, le débat contradictoire est sauté : il n'y aurait personne pour juger."
+      : n < 5 ? "En dessous de cinq participants, l'identification est très difficile. Six est l'effectif nominal."
+              : "Effectif suffisant. La séance peut être ouverte.";
     const host = ME === STATE.hostId;
     $("#hostbox").classList.toggle("hide", !host);
     $("#waithost").classList.toggle("hide", host);
-    $("#start").disabled = n < 3;
+    $("#start").disabled = false;
     return;
   }
   if (STATE.phase === "final") {
@@ -1018,8 +1239,6 @@ function renderState() {
   if (STATE.phase === "results") return;
 
   show("game");
-  if (STATE.phase !== "meeting") $("#pressionbox").classList.add("hide");
-  else if (estPeteur) $("#pressionbox").classList.remove("hide");
   $("#blanc").classList.toggle("hide", STATE.phase !== "blanc");
   $("#gphase").textContent = PHASES[STATE.phase] || STATE.phase;
   $("#gtitre").textContent = `Séance ${STATE.round} sur ${STATE.rounds}`;
@@ -1033,11 +1252,9 @@ function renderState() {
   majAppelPlan(votable);
   annonceDePhase();
   $("#votebox").classList.toggle("hide", STATE.phase !== "vote");
-  // le mandat ne sert que pendant l'ouverture : ensuite l'aide-mémoire de la
-  // colonne de gauche prend le relais, en plus court et en permanence
-  $("#rolebox").classList.toggle("hide", STATE.phase !== "intro");
   majTribune();
   majMemo();
+  majVisibilite();
   renderHand(true);
   if (STATE.phase === "intro") loadCarnet();
   if (STATE.phase !== "intro" && briefPhaseVue) fermerBrief();
@@ -1139,8 +1356,8 @@ function connect(nom, code) {
         estPeteur = pet; ROLE_CONNU = true;
         if (!m.reprise) ouvrirBrief(pet, m.nbFarters, m.hand.length);
         $("#memobox").dataset.sig = "";
-        $("#pressionbox").classList.toggle("hide", !pet);
         if (pet) majPression(0);
+        majVisibilite();
         $("#rolebox").innerHTML = `<div class="mandat ${pet ? "pet" : "inn"}">
           <div class="t">Mandat confidentiel — destruction après lecture</div>
           ${pet
@@ -1473,7 +1690,8 @@ let ROLE_CONNU = false;
 let estPeteur = false, maTribune = null, motionDispo = true, aLaParole = false;
 function majPression(v, gel) {
   const box = $("#pressionbox"); if (!box) return;
-  box.classList.remove("hide");
+  // La visibilité est décidée par majVisibilite() et par elle seule : ici on ne
+  // fait que mettre à jour le contenu.
   box.classList.toggle("chaud", !gel && v >= 70 && v < 90);
   box.classList.toggle("critique", !gel && v >= 90);
   $("#pressionbar").style.width = v + "%";
