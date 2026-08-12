@@ -377,6 +377,41 @@ svg.tbl{width:100%;display:block}
   border:2px solid rgba(184,85,47,.4);border-radius:4px;padding:4px 9px;text-transform:uppercase}
 @media(max-width:640px){.casque{padding:17px 16px 14px}.casque h3{font-size:19px}.casque .tampon-casque{display:none}}
 
+
+/* ---------- accusé de lecture ---------- */
+.jai-lu{display:flex;gap:12px;align-items:flex-start;margin-top:16px;padding:13px 15px;
+  background:rgba(255,255,255,.62);border:1px solid rgba(45,40,55,.14);border-radius:10px;
+  cursor:pointer;transition:background .15s,border-color .15s}
+.jai-lu:hover{background:rgba(255,255,255,.85)}
+.jai-lu input{margin-top:2px;width:17px;height:17px;accent-color:var(--rouille);flex:0 0 auto;cursor:pointer}
+.jai-lu.sauge input{accent-color:var(--sauge)}
+.jai-lu span{font-family:var(--serif);font-size:14.5px;line-height:1.45;color:#5a3524}
+.jai-lu.sauge span{color:#2f6146}
+.jai-lu .jl-sub{font-family:var(--sans);font-size:12px;line-height:1.5;color:var(--encre-mute);display:block;margin-top:3px}
+.jai-lu:has(input:checked){background:rgba(95,138,114,.12);border-color:rgba(95,138,114,.4)}
+
+.verrou{border:2px dashed var(--filet);border-radius:14px;padding:22px 24px;margin-bottom:22px;
+  background:rgba(255,255,255,.35);text-align:center}
+.verrou .v-t{font-family:var(--serif);font-size:20px;font-weight:500;color:var(--encre-mute);margin:0 0 8px}
+.verrou .v-s{font-size:13.5px;line-height:1.6;color:var(--encre-mute);margin:0 auto;max-width:440px}
+.verrou .v-etat{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--rouille);margin:14px 0 0}
+
+.deja-lu{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px;padding:12px 16px;
+  background:rgba(95,138,114,.1);border:1px solid rgba(95,138,114,.3);border-radius:10px}
+.deja-lu .dl-ok{font-family:var(--mono);font-weight:700;color:var(--sauge);font-size:15px}
+.deja-lu .dl-t{font-size:13.5px;color:#2f6146;flex:1;min-width:200px}
+.relire{margin:0 0 10px;text-align:right}
+
+#paslu{position:fixed;inset:0;z-index:1170;display:flex;align-items:center;justify-content:center;
+  padding:20px;background:rgba(28,24,34,.76);backdrop-filter:blur(3px)}
+#paslu .carte-brief{background:var(--papier);border:2px solid var(--rouille);border-radius:16px;
+  max-width:560px;width:100%;padding:26px 30px 22px;box-shadow:0 26px 60px rgba(20,16,26,.45);
+  animation:monte .35s cubic-bezier(.2,.8,.3,1)}
+#paslu .bf-role{font-family:var(--serif);font-size:24px;font-weight:600;color:#8f3f20;margin:6px 0 8px}
+#paslu .bf-sous{font-family:var(--serif);font-size:15px;line-height:1.6;color:var(--encre-doux);margin:0 0 18px}
+#paslu .bf-pied{display:flex;justify-content:flex-end}
+
 /* ---------- les règles sur l'accueil ---------- */
 
 .lire{display:block;border:2px solid var(--sauge);border-radius:14px;
@@ -857,6 +892,12 @@ tr.exclu .nom{text-decoration:line-through;text-decoration-color:var(--rouille);
 <section id="home">
   <div class="reprise hide" id="reprise"></div>
 
+  <div class="deja-lu hide" id="dejalu">
+    <span class="dl-ok">✓</span>
+    <span class="dl-t">Consignes déjà lues. Le Comité vous fait confiance — <b>une seule fois</b>.</span>
+    <button class="btn lien" id="revoir">Les revoir</button>
+  </div>
+
   <!-- ============ LES RÈGLES, SUR PLACE ============ -->
   <div class="lire">
     <p class="sur">Les règles, en trente secondes</p>
@@ -870,6 +911,8 @@ tr.exclu .nom{text-decoration:line-through;text-decoration-color:var(--rouille);
     </ol>
     <p class="rassure">Le reste s'apprend en jouant : le jeu vous annonce chaque étape et vous dit quoi faire.
     <button class="btn lien" id="lireregl">Le règlement complet, si vous y tenez <span class="kbd">?</span></button></p>
+    <label class="jai-lu sauge"><input type="checkbox" id="lu-regles">
+      <span>J'ai lu les règles.<br><span class="jl-sub">Cinq lignes. Ça va aller.</span></span></label>
   </div>
 
   <!-- ============ AVIS CASQUE ============ -->
@@ -910,10 +953,13 @@ tr.exclu .nom{text-decoration:line-through;text-decoration-color:var(--rouille);
       <li class="ok">Casque ou écouteurs, <b>les deux oreilles couvertes</b>, dans le bon sens — le jeu fonctionne.</li>
     </ul>
 
-    <p style="margin-top:12px"><b>Et vérifiez le sens.</b> Gauche à gauche, droite à droite.
+    <p style="margin-top:12px" id="casque-fin"><b>Et vérifiez le sens.</b> Gauche à gauche, droite à droite.
     Un casque à l'envers ne casse pas le jeu : il l'inverse silencieusement, et vous accuserez
     consciencieusement la mauvaise personne pendant toute la partie. L'essai acoustique de la salle
     d'attente est là pour ça — <b>trente secondes</b>, et vous saurez.</p>
+    <label class="jai-lu"><input type="checkbox" id="lu-casque">
+      <span>J'ai un casque, et je l'ai mis dans le bon sens.<br>
+      <span class="jl-sub">Le Comité ne dispose d'aucun moyen de le vérifier. Il vous fait confiance. Il a tort, statistiquement.</span></span></label>
   </div>
 
   <!-- ============ AVIS MOBILE (affiché uniquement sur téléphone) ============ -->
@@ -958,7 +1004,15 @@ tr.exclu .nom{text-decoration:line-through;text-decoration-color:var(--rouille);
     <p class="note-pied">Le Secrétariat — pour copie conforme</p>
   </div>
 
-  <div class="panneau">
+  <div class="verrou" id="verrou">
+    <p class="v-t">Formulaire d'inscription</p>
+    <p class="v-s">Il apparaîtra une fois les deux points ci-dessus confirmés.
+    Ce n'est pas de la bureaucratie gratuite : c'est la seule bureaucratie utile de tout le Comité.</p>
+    <p class="v-etat" id="verrouetat"></p>
+  </div>
+
+  <div class="panneau hide" id="inscription">
+    <p class="relire"><button class="btn lien" id="relire">Revoir les règles et l'avis casque</button></p>
     <h2>Formulaire d'inscription</h2>
     <div class="champ">
       <label class="label" for="nom">Nom du participant</label>
@@ -1452,6 +1506,17 @@ tr.exclu .nom{text-decoration:line-through;text-decoration-color:var(--rouille);
 
 <div id="brief" class="hide"></div>
 <div id="annonce"></div>
+<div id="paslu" class="hide">
+  <div class="carte-brief">
+    <span class="tampon">Contrôle de lecture</span>
+    <h2 class="bf-role" id="paslu-t"></h2>
+    <p class="bf-sous" id="paslu-h"></p>
+    <div class="bf-pied">
+      <button class="btn p" id="paslu-ok" disabled>Je jure que j'ai lu</button>
+    </div>
+  </div>
+</div>
+
 <div id="sortie" class="hide">
   <div class="carte-brief">
     <span class="tampon">Retrait de séance</span>

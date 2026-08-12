@@ -1281,7 +1281,7 @@ const MARGINALIA = [
   { t: "note", o: "Séminaire", h: "Le séminaire de cohésion est reporté <i>sine die</i>.<br>La cohésion aussi." },
   { t: "note", o: "Informatique", h: "Le micro capte tout.<br>Le serveur enregistre tout.<br><b>Le Comité oublie tout.</b> Ne vous inquiétez pas." },
   { t: "note", o: "Doléances", h: "Registre des réclamations : <b>0 entrée</b> depuis l'ouverture.<br>Le registre a disparu en avril." },
-  { t: "note", o: "Ressources humaines", h: "L'entretien annuel de Bernard était prévu le 14.<br>Bernard aussi." },
+  { t: "note", o: "Ressources humaines", h: "L'entretien annuel de Bernard était prévu le 14.<br>Bernard a démissionné le 13, à 11h02, <b>sans donner de motif</b>.<br>Le Comité n'a pas insisté." },
   { t: "note", o: "Chronologie", h: "14h02 : silence.<br>14h03 : quelque chose.<br>14h04 : <b>plus personne ne regarde son voisin</b>." },
   { t: "note", o: "Ventilation", h: "Le devis a été validé.<br>Le bon de commande a été perdu.<br>Le prestataire a fermé.<br><b>Le dossier est exemplaire.</b>" },
   { t: "note", o: "Statistiques", h: "87 % des accusations portent sur le siège d'en face.<br>Le siège d'en face est <b>innocent 5 fois sur 6</b>." },
@@ -2118,3 +2118,127 @@ if (pre) $("#code").value = pre.toUpperCase();
 // premières marges, pour l'écran d'accueil
 ecranCourant = "home";
 poserMarginalia();
+
+// ---------------------------------------------------------------------------
+// Accusé de lecture
+//
+// Deux pavés à confirmer avant que le formulaire d'inscription apparaisse : les
+// règles, et le casque. Le second est le seul qui compte vraiment — un joueur
+// sans casque ne joue pas, il gêne les cinq autres.
+//
+// La confirmation est mémorisée : on ne la redemande pas à chaque partie. Elle
+// reste révocable, sinon on enferme celui qui voudrait relire.
+//
+// Et il y a un chronomètre. Il ne bloque rien, il ne pénalise rien : il relève
+// simplement le temps écoulé, et si quelqu'un certifie avoir lu deux cent
+// quarante mots en trois secondes, le Comité le lui fait remarquer.
+// ---------------------------------------------------------------------------
+const CLE_LU = "qafc_lu";
+const T_CHARGE = Date.now();
+const SEUIL_TOTAL = 9000;     // les deux cases cochées en moins de 9 s
+const SEUIL_UNE   = 3500;     // une seule case cochée en moins de 3,5 s
+
+const CONTROLES = [
+  { t: "Trois secondes.",
+    h: "Le Comité a chronométré votre lecture : <b>{s}</b>. Le texte fait environ deux cent quarante mots. À ce rythme vous lisez <b>{wpm} mots par minute</b> — le record homologué est de 4 251. Toutes nos félicitations." },
+  { t: "Le procès-verbal ne juge pas.",
+    h: "Il consigne. Et il consigne que vous avez certifié votre lecture intégrale en <b>{s}</b>. Une copie a été versée à votre dossier. Vous n'aviez pas de dossier. Vous en avez un maintenant." },
+  { t: "Deux hypothèses.",
+    h: "Soit vous êtes un lecteur d'exception, soit vous venez de mentir à une administration. <b>Le Comité penche pour la seconde.</b> Il se trompe rarement, et jamais sur ce point précis." },
+  { t: "Bien joué.",
+    h: "Vous allez jouer sans casque, accuser au hasard, et écrire que le jeu est cassé. <b>Le Comité a déjà rédigé votre réclamation</b> pour gagner du temps. Il ne manque que la date." },
+  { t: "Le casque, au moins ?",
+    h: "Non. Ne répondez pas. <b>Le Comité préfère ne pas savoir</b>, et vos cinq collègues le découvriront bien assez tôt — vers la deuxième manche, quand vous accuserez le siège vide." },
+  { t: "Relevé de lecture : {s}.",
+    h: "Durée estimée par le Secrétariat : <b>une minute vingt</b>. L'écart a été consigné au registre des anomalies. Le registre des anomalies a disparu en avril. <b>Vous avez de la chance.</b>" },
+  { t: "Personne n'a jamais lu aussi vite.",
+    h: "Le précédent record, établi en 2019, était détenu par Bernard. <b>Bernard a démissionné le lendemain.</b> Le Comité n'établit aucun lien entre ces deux faits, et vous invite à n'en établir aucun non plus." },
+  { t: "C'est noté.",
+    h: "Vous êtes libre de ne pas lire. La moitié des participants ne lisent pas. <b>C'est aussi, très exactement, la moitié qui perd.</b> Le Comité vous souhaite une excellente séance." },
+  { t: "Nous avons un chronomètre.",
+    h: "Vous l'ignoriez. C'était le but. <b>{s}</b>, c'est le temps qu'il vous a fallu pour certifier avoir tout lu — soit un peu moins que le temps de lire cette phrase. Le Comité admire, sans y croire." }
+];
+
+function luEtat() {
+  try { return JSON.parse(localStorage.getItem(CLE_LU) || "{}"); } catch { return {}; }
+}
+function luEcrire(e) { try { localStorage.setItem(CLE_LU, JSON.stringify(e)); } catch {} }
+
+let controleFait = false;
+
+function majVerrou(sansAnimation) {
+  const cr = $("#lu-regles"), cc = $("#lu-casque");
+  if (!cr || !cc) return;
+  const ok = cr.checked && cc.checked;
+  $("#verrou").classList.toggle("hide", ok);
+  $("#inscription").classList.toggle("hide", !ok);
+  const e = $("#verrouetat");
+  if (e) e.textContent = ok ? "" :
+    (!cr.checked && !cc.checked) ? "Deux confirmations attendues"
+    : "Une confirmation attendue";
+  if (!ok && !sansAnimation) luEcrire({});      // décoché : on oublie, sinon le retour serait faussé
+  if (ok && !sansAnimation) {
+    luEcrire({ regles: true, casque: true, le: Date.now() });
+    controleLecture();
+    $("#inscription").scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+}
+
+// Le contrôle lui-même. Une seule fois par session, et jamais si la lecture a
+// déjà été confirmée lors d'une visite précédente — on ne va pas accuser
+// quelqu'un de ne pas relire ce qu'il a déjà lu.
+function controleLecture() {
+  if (controleFait || repriseLecture) return;
+  controleFait = true;
+  const dt = Date.now() - T_CHARGE;
+  if (dt >= SEUIL_TOTAL) return;
+  const sec = Math.max(1, Math.round(dt / 1000));
+  const c = CONTROLES[Math.floor(Math.random() * CONTROLES.length)];
+  const fmt = (x) => x.replace(/\{s\}/g, sec + " seconde" + (sec > 1 ? "s" : ""))
+                      .replace(/\{wpm\}/g, String(Math.round(240 / (dt / 60000))));
+  $("#paslu-t").innerHTML = fmt(c.t);
+  $("#paslu-h").innerHTML = fmt(c.h);
+  $("#paslu").classList.remove("hide");
+  // le bouton s'active après trois secondes : le seul temps de lecture qu'on
+  // puisse garantir, c'est celui-là
+  const b = $("#paslu-ok");
+  let reste = 3;
+  b.disabled = true; b.textContent = `Je jure que j'ai lu (${reste})`;
+  const it = setInterval(() => {
+    reste--;
+    if (reste <= 0) { clearInterval(it); b.disabled = false; b.textContent = "Je jure que j'ai lu"; }
+    else b.textContent = `Je jure que j'ai lu (${reste})`;
+  }, 1000);
+  b.onclick = () => { clearInterval(it); $("#paslu").classList.add("hide"); };
+}
+
+// Une case cochée toute seule, beaucoup trop vite : on ne dit rien encore, mais
+// on retient. Le contrôle se déclenchera à la seconde.
+let repriseLecture = false;
+
+function initLecture() {
+  const cr = $("#lu-regles"), cc = $("#lu-casque");
+  if (!cr || !cc) return;
+  const e = luEtat();
+  if (e.regles && e.casque) {
+    // déjà lu lors d'une visite précédente : on replie les deux pavés et on
+    // ouvre directement le formulaire, sans contrôle de lecture
+    repriseLecture = true;
+    cr.checked = true; cc.checked = true;
+    document.querySelectorAll(".lire, .casque").forEach(x => x.classList.add("hide"));
+    $("#dejalu").classList.remove("hide");
+    majVerrou(true);
+  } else {
+    majVerrou(true);
+  }
+  [cr, cc].forEach(c => c.onchange = () => majVerrou(false));
+
+  const revoir = () => {
+    document.querySelectorAll(".lire, .casque").forEach(x => x.classList.remove("hide"));
+    $("#dejalu").classList.add("hide");
+    document.querySelector(".lire").scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  const r1 = $("#revoir"); if (r1) r1.onclick = revoir;
+  const r2 = $("#relire"); if (r2) r2.onclick = revoir;
+}
+initLecture();
