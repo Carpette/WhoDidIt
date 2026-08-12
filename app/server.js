@@ -375,6 +375,7 @@ function endRound(r) {
       if (p.id === outId || !p.emissions) pts = 0;
       else pts = Math.min(p.emissions, 3) + (votesRecus > 0 ? 1 : 3);
     }
+    else if (p.retard === r.round) pts = 0;      // arrivé en cours : il observe, il ne marque pas
     else {
       if (p.id === outId) pts = 0;
       else {
@@ -458,19 +459,31 @@ wss.on("connection", (ws) => {
 
       if (!existe && m.code) return send(ws, "err", { msg: "Aucune séance ne porte cette référence." });
       if (r.players.size >= SEATS) return send(ws, "err", { msg: "Réunion complète (6 places)." });
-      if (r.phase !== "lobby") return send(ws, "err", { msg: "Séance déjà ouverte — impossible de s'inscrire en cours." });
+      // On accepte les arrivées EN COURS de séance. Refuser revenait à enfermer
+      // dehors, jusqu'à la fin de la partie, quiconque avait eu un problème
+      // technique — c'est le contraire de ce qu'on veut.
+      // L'arrivant s'assied, entend et parle, mais n'a pas de rôle actif pour la
+      // manche entamée : pas de pièce, et son temps de parole est réputé rempli
+      // pour qu'on ne lui reproche pas un silence antérieur à son arrivée. Il
+      // devient un joueur à part entière à la manche suivante.
+      const enCours = r.phase !== "lobby" && r.phase !== "final";
       const used = new Set([...r.players.values()].map(p => p.seat));
       const seat = [...Array(SEATS).keys()].find(i => !used.has(i));
       me = {
         id: Math.random().toString(36).slice(2, 10),
         token: Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2),
         nom: (m.nom || "Anonyme").slice(0, 16), seat, ws, online: true,
-        score: 0, speech: 0, hand: [], role: "innocent", motionDispo: true
+        score: 0, speech: enCours ? CFG.minSpeech : 0, hand: [], role: "innocent",
+        motionDispo: true, retard: enCours ? r.round : 0
       };
       r.players.set(me.id, me); cur = r;
       if (!r.hostId) r.hostId = me.id;
-      send(ws, "joined", { id: me.id, seat, code: c, sounds: SOUNDS, minSpeech: CFG.minSpeech / 1000, ice: ICE, token: me.token, motionDispo: true });
+      send(ws, "joined", { id: me.id, seat, code: c, sounds: SOUNDS, minSpeech: CFG.minSpeech / 1000, ice: ICE, token: me.token, motionDispo: true, enCours });
+      if (enCours) {
+        send(ws, "role", { role: "innocent", hand: [], nbFarters: r.nbFarters || 1, cooldown: CFG.cooldown / 1000, retard: true });
+      }
       sync(r);
+      niveaux(r);
       bcast(r, "peers", { peers: [...r.players.values()].map(p => ({ id: p.id, seat: p.seat, nom: p.nom })) });
       return;
     }
@@ -562,11 +575,47 @@ wss.on("connection", (ws) => {
         if (t) send(t.ws, "signal", { from: me.id, data: m.data });
         break;
       }
+
+      // Départ VOLONTAIRE, à distinguer d'une coupure. Sur coupure, en pleine
+      // séance, on conserve le siège : le joueur revient et la manche reste
+      // juste. Ici il part exprès — sa place est libérée immédiatement, dans
+      // toutes les phases, sinon la table garde un fantôme que personne ne peut
+      // enlever et que tout le monde peut accuser.
+      case "quitter": {
+        const partant = me.id;
+        me.parti = true;                     // pour que la fermeture qui suit ne rejoue rien
+        r.players.delete(partant);
+        delete r.votes[partant];
+        delete r.voteD[partant];
+        r.eliminated.delete(partant);
+        const restants = [...r.players.values()];
+        if (r.hostId === partant) r.hostId = restants.length ? restants[0].id : null;
+        send(ws, "quitte", {});
+        if (!restants.length) {
+          clearTimeout(r.timer); clearInterval(r.tick); rooms.delete(r.code);
+          try { ws.close(); } catch {}
+          return;
+        }
+        bcast(r, "peerleft", { id: partant });
+        // Si le partant intervenait au débat en cours, le débat n'a plus d'objet :
+        // on ne peut pas juger qui n'a pas défendu sa position quand l'un des deux
+        // n'est plus là. On passe à la suite.
+        const d = r.debat;
+        if (d && (d.a === partant || d.b === partant)) {
+          r.debat = null; r.sousPhase = null; r.motion = null;
+          bcast(r, "debatAnnule", {});
+          niveaux(r);
+          debatSuivant(r);
+        } else { sync(r); niveaux(r); }
+        try { ws.close(); } catch {}
+        break;
+      }
     }
   });
 
   ws.on("close", () => {
     if (!cur || !me) return;
+    if (me.parti) return;                     // départ volontaire, déjà traité
     if (me.ws !== ws) return;                 // socket remplacée par une reprise
     me.online = false;
 

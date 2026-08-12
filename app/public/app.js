@@ -2,11 +2,15 @@
    Audio : pets pré-rendus en binaural (HRTF MIT KEMAR), voix spatialisée via PannerNode. */
 
 const $ = (s) => document.querySelector(s);
+let ecranCourant = "";
 const show = (id) => {
   ["home", "lobby", "game", "res"].forEach(s => $("#" + s).classList.toggle("hide", s !== id));
   // la séance passe en pleine largeur : trois colonnes au lieu d'une bande centrale
   const f = document.querySelector(".feuille");
   if (f) f.classList.toggle("large", id === "game");
+  document.body.classList.toggle("en-seance", id === "game");
+  // marges renouvelées à chaque changement d'écran, pas à chaque redessin
+  if (id !== ecranCourant) { ecranCourant = id; poserMarginalia(); }
 };
 
 // --- géométrie : siège relatif -> position dans le repère de l'auditeur -------
@@ -1140,14 +1144,15 @@ function majVisibilite() {
   mq("#carnetbox", enSeance || auScrutin);
 
   // Jauges micro — visibles tant qu'on peut parler ; muettes à l'ouverture et
-  // pendant la suspension, où elles n'informent de rien.
-  mq("#micbox", enSeance || auScrutin);
+  // pendant la suspension, où elles n'informent de rien. Sauf en cas de souci
+  // d'émission : c'est là que le diagnostic s'affiche, le cacher n'aurait aucun sens.
+  const souci = Date.now() - soucisEmission < 15000;
+  mq("#micbox", enSeance || auScrutin || souci);
 
   // Réglages — on les règle une fois, à l'accueil. En séance ils sont repliés,
   // accessibles en un clic si quelque chose cloche.
   // …sauf si l'émission pose problème : dans ce cas les curseurs sont la solution,
   // et les cacher reviendrait à décrire une panne sans donner l'outil pour la lever.
-  const souci = Date.now() - soucisEmission < 15000;
   const rg = $("#reglagesbox");
   if (rg) {
     rg.classList.toggle("hide", !(enSeance || auScrutin) && !souci);
@@ -1170,6 +1175,295 @@ function majVisibilite() {
   }
 }
 
+
+// ---------------------------------------------------------------------------
+// Retrait volontaire
+//
+// À distinguer d'une coupure : sur coupure on garde le siège, parce que le joueur
+// revient et que supprimer sa place fausserait la manche. Ici il part exprès, et
+// tout doit être défait — le siège côté serveur, les liaisons audio, et surtout
+// le jeton de reprise, sans quoi le simple fait de recharger la page le
+// ramènerait dans le salon qu'il vient de quitter.
+// ---------------------------------------------------------------------------
+let enSortie = false;
+
+function demanderSortie() {
+  const t = $("#sortietxt");
+  if (t) t.textContent = STATE && STATE.phase !== "lobby" && STATE.phase !== "final"
+    ? "Votre place sera libérée immédiatement. La manche continue sans vous, et vous ne pourrez pas la reprendre."
+    : "Vous quitterez le salon et votre place sera rendue disponible.";
+  $("#sortie").classList.remove("hide");
+}
+
+function quitterSeance() {
+  enSortie = true;
+  $("#sortie").classList.add("hide");
+  jeton.effacer();
+  partieEnCours = false;
+  clearTimeout(reconnexion); reconnexion = null;
+  try { ws && ws.readyState === 1 && ws.send(JSON.stringify({ type: "quitter" })); } catch {}
+  // On ne referme pas la socket ici : le serveur le fait après avoir libéré la
+  // place et prévenu la table. Fermer trop tôt ferait passer le départ pour une
+  // simple coupure, et le siège resterait occupé.
+  setTimeout(() => { try { ws && ws.close(); } catch {} }, 400);
+  rentrerAuCalme();
+}
+
+// Remise à zéro complète du client, sans rechargement : on garde le micro ouvert
+// et les réglages, on jette tout le reste.
+function rentrerAuCalme() {
+  peers.forEach(p => { clearInterval(p.stats); try { p.pc.close(); } catch {} try { p.audioEl && (p.audioEl.srcObject = null); } catch {} });
+  peers.clear();
+  STATE = null; ME = null; SEAT = 0; HAND = []; myVote = null; maTribune = null;
+  estPeteur = false; ROLE_CONNU = false; motionDispo = true;
+  sigHand = ""; sigPlan = ""; sigAnnonce = ""; speechAcc = 0; speechSent = 0;
+  emisVuLe = 0; secoursActif = false;
+  fermerBrief();
+  const an = $("#annonce"); if (an) an.className = "";
+  $("#blanc").classList.add("hide");
+  bandeauReseau("");
+  const rc = $("#refcode"); if (rc) rc.classList.add("hide");
+  const et = $("#etat"); if (et) { et.textContent = "hors séance"; et.className = "pastille off"; }
+  history.replaceState(null, "", location.pathname);
+  const cd = $("#code"); if (cd) cd.value = "";
+  $("#go").disabled = false;
+  $("#err").textContent = "";
+  show("home");
+  majBoutonQuitter();
+  setTimeout(() => { enSortie = false; }, 800);
+}
+
+function majBoutonQuitter() {
+  const b = $("#btnquitter");
+  if (b) b.classList.toggle("hide", !(partieEnCours && STATE));
+}
+
+
+// ---------------------------------------------------------------------------
+// Marginalia
+//
+// Notes de service, post-it et gribouillis dans les marges. Aucune conséquence
+// sur le jeu : rien n'est cliquable, rien n'est annoncé aux lecteurs d'écran, et
+// tout disparaît dès que la largeur manque. On tire au sort à chaque écran, sans
+// répétition, pour que deux parties ne se ressemblent pas.
+// ---------------------------------------------------------------------------
+const MARGINALIA = [
+  // --- notes de service : l'administration face au désastre -------------------
+  { t: "note", o: "Note de service", h: "La salle 217 bis n'est <b>toujours pas ventilée</b>. Dossier transmis aux Moyens Généraux le 4 mars. Relancé le 12. Relancé le 30. Classé le 31." },
+  { t: "note", o: "Objet", h: "Odeur persistante au 2<sup>e</sup> étage.<br><b>Statut : classé sans suite.</b>" },
+  { t: "note", o: "Rappel RH", h: "« C'était la chaise » <b>n'est pas un motif recevable</b> devant la commission." },
+  { t: "note", o: "Point 14", h: "Reporté.<br>Comme les treize précédents." },
+  { t: "note", o: "Sécurité", h: "Extincteur : dans le couloir.<br>Désodorisant : <b>nulle part</b>." },
+  { t: "note", o: "Consigne", h: "Merci de laisser la salle dans l'état où vous l'avez trouvée.<br><b>Il est déjà trop tard.</b>" },
+  { t: "note", o: "Budget", h: "La climatisation a été coupée pour raisons budgétaires.<br>Bon courage à tous." },
+  { t: "note", o: "Formulaire PV-6 bis", h: "Déclaration spontanée de responsabilité.<br><b>Jamais rempli depuis 1997.</b>" },
+  { t: "note", o: "Article 12", h: "Le règlement intérieur interdit de rire en séance.<br>Jamais appliqué. On sait pourquoi." },
+  { t: "note", o: "Avertissement", h: "Le Comité ne saurait être tenu responsable des <b>amitiés perdues</b> au cours de la présente séance." },
+  { t: "note", o: "Confidentialité", h: "Le plan de salle est strictement confidentiel.<br>Il est également affiché à l'écran." },
+  { t: "note", o: "Huis clos", h: "Pensez à fermer la porte.<br>Il n'y a pas de porte." },
+  { t: "note", o: "Restauration", h: "Le café est pris en charge par le service.<br><b>Les conséquences ne le sont pas.</b>" },
+  { t: "note", o: "Ordre du jour", h: "Durée prévue : 45 minutes.<br>Durée réelle : voir ci-contre." },
+  { t: "note", o: "Terminologie", h: "Le Comité rappelle que le mot <b>« vent »</b> est proscrit des comptes rendus officiels." },
+  { t: "note", o: "Effectifs", h: "Les stagiaires ne votent pas.<br>Les stagiaires n'existent pas." },
+  { t: "note", o: "Maintenance", h: "Le fauteuil du siège 4 grince.<br><b>Ce n'est pas toujours le fauteuil.</b>" },
+  { t: "note", o: "Mention légale", h: "Toute ressemblance avec une réunion réelle serait <b>profondément fâcheuse</b>." },
+  { t: "note", o: "Procédure", h: "En cas d'incident : ouvrir la fenêtre.<br>En l'absence de fenêtre : <b>assumer</b>." },
+  { t: "note", o: "Registre", h: "Dernier audit qualité de l'air : <b>mars 2019</b>.<br>L'auditeur n'a pas donné suite." },
+  { t: "note", o: "Direction", h: "Il est rappelé que le silence est d'or.<br>Ici, il est surtout <b>compromettant</b>." },
+  { t: "note", o: "Assurance", h: "Le sinistre du 12 juin a été refusé au motif que <b>« l'origine humaine n'est pas couverte »</b>." },
+  { t: "note", o: "Inventaire", h: "Plantes vertes du 2<sup>e</sup> : 6 en janvier.<br>4 en mars.<br><b>1 aujourd'hui.</b>" },
+  { t: "note", o: "Hygiène", h: "Le bocal du frigo est là depuis février.<br>Personne ne l'ouvre.<br><b>Personne ne l'ouvrira.</b>" },
+  { t: "note", o: "Étude interne", h: "Corrélation établie entre la cantine du mardi et les séances du mercredi.<br><i>Rapport enterré.</i>" },
+  { t: "note", o: "Communication", h: "Le service com. recommande le terme <b>« aléa atmosphérique interne »</b>." },
+  { t: "note", o: "Convocation", h: "Séance ordinaire.<br>Rien, dans cette salle, n'a jamais été ordinaire." },
+  { t: "note", o: "Formation", h: "Module « Communication non violente », 3 jours.<br>Annulé.<br><b>Motif : incident en salle.</b>" },
+  { t: "note", o: "Rappel", h: "Toute personne quittant la séance sera <b>réputée avoir avoué</b>. Article 7, alinéa 3." },
+  { t: "note", o: "Séminaire", h: "Le séminaire de cohésion est reporté <i>sine die</i>.<br>La cohésion aussi." },
+  { t: "note", o: "Informatique", h: "Le micro capte tout.<br>Le serveur enregistre tout.<br><b>Le Comité oublie tout.</b> Ne vous inquiétez pas." },
+  { t: "note", o: "Doléances", h: "Registre des réclamations : <b>0 entrée</b> depuis l'ouverture.<br>Le registre a disparu en avril." },
+  { t: "note", o: "Ressources humaines", h: "L'entretien annuel de Bernard était prévu le 14.<br>Bernard aussi." },
+  { t: "note", o: "Chronologie", h: "14h02 : silence.<br>14h03 : quelque chose.<br>14h04 : <b>plus personne ne regarde son voisin</b>." },
+  { t: "note", o: "Ventilation", h: "Le devis a été validé.<br>Le bon de commande a été perdu.<br>Le prestataire a fermé.<br><b>Le dossier est exemplaire.</b>" },
+  { t: "note", o: "Statistiques", h: "87 % des accusations portent sur le siège d'en face.<br>Le siège d'en face est <b>innocent 5 fois sur 6</b>." },
+  { t: "note", o: "Note interne", h: "Le Comité a étudié l'installation d'une fenêtre.<br>Coût estimé : 4 200 €.<br><b>Coût du statu quo : indéterminé.</b>" },
+  { t: "note", o: "Juridique", h: "Aucune jurisprudence n'existe sur ce point.<br>Le Comité en créera une aujourd'hui." },
+  { t: "note", o: "Ordre intérieur", h: "Il est interdit de désigner quelqu'un du doigt.<br>Le vote électronique a été créé pour cela." },
+  { t: "note", o: "Post-séance", h: "Les participants sont priés d'attendre <b>dix minutes</b> avant d'emprunter l'ascenseur.<br>Tous ensemble, c'est non." },
+  { t: "note", o: "Sinistralité", h: "Trois départs volontaires cette année.<br>Aucun n'a donné de motif.<br><b>Aucun n'en avait besoin.</b>" },
+  { t: "note", o: "Archives", h: "Le PV du 9 février est illisible.<br>La secrétaire écrivait vite.<br><b>Elle avait ses raisons.</b>" },
+  { t: "note", o: "Qualité de l'air", h: "Capteur installé lundi.<br>Capteur retiré mardi.<br><i>« Les valeurs relevées n'étaient pas exploitables. »</i>" },
+  { t: "note", o: "Immobilier", h: "Le bail de la salle 217 bis court jusqu'en 2031.<br><b>Le propriétaire n'a pas souhaité le renouveler.</b>" },
+
+  // --- post-it : la voix intérieure d'un participant --------------------------
+  { t: "post", h: "Ne pas accuser Bernard.<br>Bernard est parti<br>en 2019." },
+  { t: "post", h: "Penser à respirer<br>par la bouche." },
+  { t: "post", h: "Si tout le monde se tait<br>en même temps,<br>c'est qu'il s'est passé<br>quelque chose." },
+  { t: "post", h: "Demander une fenêtre.<br>(11<sup>e</sup> demande)" },
+  { t: "post", h: "Ne PAS reprendre<br>du chili le mardi.<br>On a essayé.<br>C'était non." },
+  { t: "post", h: "Le silence n'est pas<br>une stratégie.<br>C'est un aveu lent." },
+  { t: "post", h: "Vérifier le sens<br>du casque.<br>G à gauche.<br>D à droite.<br>Oui, vraiment." },
+  { t: "post", h: "Apporter une bougie<br>la prochaine fois." },
+  { t: "post", h: "Ne plus jamais<br>s'asseoir dos<br>à la porte.<br>Il n'y a pas de porte.<br>C'est pire." },
+  { t: "post", h: "Rire au bon moment<br>= alibi.<br>Rire au mauvais<br>= aveu." },
+  { t: "post", h: "Si Sophie propose<br>le restaurant indien,<br>DIRE NON." },
+  { t: "post", h: "Note : ne pas<br>faire confiance<br>à ceux qui<br>ne notent rien." },
+  { t: "post", h: "Compter les respirations.<br>Celui qui retient<br>la sienne, c'est lui." },
+  { t: "post", h: "J'ai voté contre moi.<br>Par acquit<br>de conscience." },
+  { t: "post", h: "Racheter du café.<br>Pas celui-là.<br>Vraiment pas<br>celui-là." },
+  { t: "post", h: "Le stagiaire sait<br>quelque chose.<br>Le stagiaire<br>ne dira rien." },
+  { t: "post", h: "Prévoir une excuse<br>pour partir à 15h.<br>Prévoir aussi<br>de ne pas pouvoir." },
+  { t: "post", h: "Ce n'est pas<br>parce que je suis<br>innocent que<br>je vais m'en sortir." },
+
+  // --- marginalia manuscrites : le carnet d'un joueur qui doute ----------------
+  { t: "main", h: "j'ai entendu quelque chose à droite.<br>ou à gauche." },
+  { t: "main", h: "P4 a toussé trois fois.<br>très suspect." },
+  { t: "main", h: "note à moi-même :<br>ne plus jamais accepter<br>cette réunion" },
+  { t: "main", h: "quelqu'un a bougé sa chaise<br>pile au bon moment.<br>trop pratique." },
+  { t: "main", h: "il parle beaucoup.<br>beaucoup trop.<br>c'est lui." },
+  { t: "main", h: "ce n'était pas lui.<br>rayer ce qui précède." },
+  { t: "main", h: "14h07 — quelque chose.<br>14h08 — plus rien.<br>14h09 — tout le monde<br>regarde ailleurs." },
+  { t: "main", h: "j'ai accusé Sophie.<br>Sophie était innocente.<br>Sophie le sait maintenant." },
+  { t: "main", h: "trois fois de suite<br>à ma gauche.<br>soit c'est lui,<br>soit mon casque est à l'envers." },
+  { t: "main", h: "c'était mon casque." },
+  { t: "main", h: "on est vendredi.<br>on est TOUS suspects<br>le vendredi." },
+  { t: "main", h: "j'ai gagné.<br>je n'ai plus d'amis,<br>mais j'ai gagné." },
+  { t: "main", h: "personne n'a rien dit.<br>c'est ça le pire." },
+  { t: "main", h: "il a ri.<br>on rit quand<br>on est soulagé." },
+  { t: "main", h: "note : le silence de P2<br>dure depuis 40 secondes.<br>personne ne survit<br>à 40 secondes." },
+
+  // --- tampons ----------------------------------------------------------------
+  { t: "tampon", h: "Sans odeur<br>Service Qualité", c: "sauge" },
+  { t: "tampon", h: "Ne pas aérer<br>avant lecture", c: "" },
+  { t: "tampon", h: "Copie n° 4 / 6<br>Ne pas diffuser", c: "ardoise" },
+  { t: "tampon", h: "Lu et approuvé<br>sous toutes réserves", c: "sauge" },
+  { t: "tampon", h: "À classer<br>sans suite", c: "" },
+  { t: "tampon", h: "Pièce non<br>communicable", c: "ardoise" },
+  { t: "tampon", h: "Original<br>égaré", c: "" },
+  { t: "tampon", h: "Vu.<br>Sans commentaire", c: "sauge" },
+  { t: "tampon", h: "Dossier clos<br>faute de témoin", c: "" },
+  { t: "tampon", h: "Reçu le 12<br>Traité jamais", c: "ardoise" },
+  { t: "tampon", h: "Ne pas relancer<br>le service", c: "" },
+  { t: "tampon", h: "Exemplaire du<br>Secrétariat", c: "sauge" },
+
+  // --- chroniques : l'escalade administrative, en cinq lignes ------------------
+  { t: "chrono", o: "Rapport d'incident 04-B", h: "<b>11h13</b> — porte fermée pour raisons acoustiques.<br><b>11h14</b> — ventilation coupée par mesure d'économie.<br><b>11h31</b> — première demande de suspension.<br><b>11h32</b> — demande rejetée.<br><b>12h05</b> — la salle comprend son erreur." },
+  { t: "chrono", o: "Suivi du dossier 217", h: "<b>Jour 1</b> — on suspecte.<br><b>Jour 2</b> — on confirme.<br><b>Jour 3</b> — on déplace le service.<br><b>Jour 4</b> — on rebâtit le service ailleurs.<br><b>Jour 5</b> — on apprend que ça a suivi." },
+  { t: "chrono", o: "Note de la Direction", h: "Le Comité a examiné la question.<br>Le Comité a mandaté un groupe de travail.<br>Le groupe de travail a rendu un rapport.<br>Le rapport recommande <b>d'examiner la question</b>." },
+  { t: "chrono", o: "Compte rendu, extrait", h: "<i>« Une légère gêne diffuse a été constatée en séance plénière. »</i><br>Les six caméras montrent six personnes se levant <b>à la même seconde</b>." },
+  { t: "chrono", o: "Procédure Alpha-7", h: "Portes : fermées.<br>Ventilation : coupée.<br>Participant responsable : <b>souriant</b>.<br>La salle comprend à 11h14.<br>Trop tard." },
+  { t: "chrono", o: "Bilan trimestriel", h: "Réunions tenues : 34.<br>Décisions prises : 2.<br>Départs volontaires : 3.<br>Fenêtres installées : <b>0</b>." },
+  { t: "chrono", o: "Mémo confidentiel", h: "Le lien de causalité entre la cantine du mardi et les événements du mercredi <b>reste débattu en commission</b>.<br>La commission se réunit le mercredi." },
+  { t: "chrono", o: "Fiche de poste", h: "Intitulé : <b>Référent Qualité de l'Air</b>.<br>Créé en janvier.<br>Pourvu en février.<br>Vacant depuis mars.<br>Non republié." }
+];
+
+// Placement — volontairement irrégulier.
+//
+// Une grille de six emplacements fixes, trois de chaque côté, tous horizontaux :
+// ça se voit immédiatement et ça trahit la génération automatique. Ici rien n'est
+// aligné. Le nombre varie, la répartition gauche/droite est asymétrique, les
+// hauteurs sont tirées au sort avec des écarts inégaux, les largeurs et les
+// rotations aussi, et certains éléments mordent volontairement le bord de
+// l'écran comme s'ils avaient été collés à la va-vite.
+const HAUTEUR = { note: 112, post: 100, main: 74, tampon: 46, chrono: 168 };
+
+function melangerTab(a) {
+  const t = [...a];
+  for (let i = t.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [t[i], t[j]] = [t[j], t[i]]; }
+  return t;
+}
+const entre = (a, b) => a + Math.random() * (b - a);
+
+function poserMarginalia() {
+  const box = $("#marges");
+  if (!box) return;
+  const vh = window.innerHeight;
+  // Largeur réellement disponible dans la marge : la feuille est centrée et sa
+  // largeur change selon l'écran (1000 px hors séance, 1440 en séance). Sans ce
+  // calcul, une note large posée loin du bord passerait sous le contenu dès que
+  // la fenêtre est un peu juste — ce qui ne se voyait pas sur un écran très large.
+  const f = document.querySelector(".feuille");
+  const dispo = f ? Math.max(0, Math.round((window.innerWidth - f.getBoundingClientRect().width) / 2) - 10) : 200;
+  const fonds = melangerTab(MARGINALIA);
+  let k = 0;
+  const html = [];
+
+  // Entre quatre et sept éléments, répartis inégalement : jamais trois et trois.
+  const total = 4 + Math.floor(Math.random() * 4);
+  let nG = 1 + Math.floor(Math.random() * (total - 1));
+  if (nG === total - nG && total % 2 === 0) nG += Math.random() < 0.5 ? 1 : -1;   // on évite l'équilibre parfait
+  const parts = { g: nG, d: total - nG };
+
+  for (const cote of ["g", "d"]) {
+    // Départ différent de chaque côté : les deux colonnes ne commencent jamais à
+    // la même hauteur. À gauche on démarre plus bas, pour ne pas recouvrir le
+    // cartouche « SÉANCE 04-B » qui est fixé dans le coin.
+    // Jamais au-dessus de 96 px : le bandeau du haut est collant et recouvrirait
+    // le début de la note, qui apparaîtrait coupée.
+    let y = cote === "g" ? entre(150, 300) : entre(96, 220);
+    for (let n = 0; n < parts[cote]; n++) {
+      const m = fonds[k];
+      if (!m) break;
+      const h = HAUTEUR[m.t] || 100;
+      if (y + h > vh - 110) break;                   // on laisse les cartouches de coin tranquilles
+      k++;
+
+      const rot = entre(-7, 7).toFixed(2);
+      // Décalage horizontal : la plupart dans la marge, quelques-uns qui mordent
+      // le bord de l'écran.
+      //
+      // Mais SEULEMENT ceux qui ont un fond : un post-it ou un tampon dont un
+      // coin dépasse se lit comme un objet posé de travers. Une note manuscrite,
+      // qui n'est que du texte nu, se lit comme un bug — on ne voit plus que des
+      // moitiés de mots. Elles restent donc entièrement dans la marge.
+      const peutDeborder = m.t === "post" || m.t === "tampon";
+      const dehors = peutDeborder && Math.random() < 0.35;
+      const dx = Math.round(dehors ? entre(-20, -6) : entre(10, 54));
+      const larg = Math.min(Math.round(entre(148, 214)), dispo - dx);
+      if (larg < 130) continue;               // marge trop étroite pour cet élément
+      const opa = entre(0.82, 1).toFixed(2);
+
+      let inner;
+      if (m.t === "note") inner = `<div class="mg-note"><span class="obj">${m.o}</span>${m.h}</div>`;
+      else if (m.t === "chrono") inner = `<div class="mg-note mg-chrono"><span class="obj">${m.o}</span>${m.h}</div>`;
+      else if (m.t === "post") inner = `<div class="mg-post ${["", "rose", "bleu", "vert"][Math.floor(Math.random() * 4)]}">${m.h}</div>`;
+      else if (m.t === "main") inner = `<div class="mg-main">${m.h}</div>`;
+      else inner = `<span class="mg-tampon ${m.c || ""}">${m.h}</span>`;
+
+      // `${cote}` vaut "g" ou "d" : il faut la vraie propriété CSS, sinon la
+      // déclaration est ignorée et tout s'empile au bord gauche.
+      const bord = cote === "g" ? "left" : "right";
+      html.push(`<div class="marge ${cote}" style="top:${Math.round(y)}px;${bord}:${dx}px;width:${larg}px;
+        opacity:${opa};transform:rotate(${rot}deg);animation-delay:${Math.round(entre(0, 500))}ms">${inner}</div>`);
+
+      // écart vertical très variable : parfois deux notes presque collées,
+      // parfois un grand vide. C'est ce qui rend la colonne crédible.
+      y += h + (Math.random() < 0.22 ? entre(14, 34) : entre(70, 230));
+    }
+  }
+  box.innerHTML = html.join("");
+
+  // Reprise après coup, sur les hauteurs RÉELLES.
+  //
+  // Les hauteurs du tableau ci-dessus sont des estimations : une note de quatre
+  // lignes est bien plus haute qu'une note de deux, et la rotation ajoute encore
+  // quelques pixels. Plutôt que de gonfler les marges de sécurité — ce qui
+  // reviendrait à réaligner la colonne —, on mesure ce qui a été posé et on
+  // repousse ce qui se chevauche. On garde l'irrégularité, on perd les collisions.
+  ["g", "d"].forEach(cote => {
+    const els = [...box.querySelectorAll(".marge." + cote)]
+      .sort((a, b) => parseFloat(a.style.top) - parseFloat(b.style.top));
+    let bas = -Infinity;
+    els.forEach(e => {
+      let y = parseFloat(e.style.top);
+      const h = e.offsetHeight + 8;                 // marge pour la rotation
+      if (y < bas + 16) y = bas + 16 + Math.random() * 40;
+      if (y + h > vh - 100) { e.remove(); return; }  // plutôt retirer que chevaucher un coin
+      e.style.top = Math.round(y) + "px";
+      bas = y + h;
+    });
+  });
+}
+
 const PHASES = {
   intro: "Ouverture de séance", meeting: "Séance en cours", blanc: "Suspension",
   vote: "Scrutin", results: "Procès-verbal", final: "Clôture"
@@ -1177,6 +1471,7 @@ const PHASES = {
 function renderState() {
   if (!STATE) return;
   majMicro();
+  majBoutonQuitter();
   const etat = $("#etat");
   if (etat) { etat.textContent = STATE.phase === "lobby" ? "en attente" : PHASES[STATE.phase] || STATE.phase; etat.className = "pastille on"; }
   const rc = $("#refcode"); if (rc && STATE.code) { rc.textContent = STATE.code; rc.classList.remove("hide"); }
@@ -1323,6 +1618,14 @@ function connect(nom, code) {
           : "", m.reprise ? "ok" : "");
         if (m.reprise) setTimeout(() => bandeauReseau(""), 6000);
         break;
+      case "quitte":
+        // le serveur a bien libéré la place ; le client est déjà revenu à l'accueil
+        break;
+      case "debatAnnule":
+        maTribune = null;
+        bandeauReseau("<b>Débat interrompu.</b> Un des deux intervenants a quitté la séance.", "");
+        setTimeout(() => bandeauReseau(""), 5000);
+        break;
       case "state": {
         const avant = STATE ? `${STATE.sousPhase}|${STATE.debat ? STATE.debat.i : 0}` : "";
         STATE = m.state;
@@ -1354,7 +1657,12 @@ function connect(nom, code) {
         if (m.cooldown) COOLDOWN = m.cooldown;
         const pet = m.role === "peteur";
         estPeteur = pet; ROLE_CONNU = true;
-        if (!m.reprise) ouvrirBrief(pet, m.nbFarters, m.hand.length);
+        if (m.retard) {
+          bandeauReseau(`<b>Vous arrivez en cours de séance.</b> Vous entendez et vous parlez,
+            mais vous n'avez pas de pièce pour cette manche et vous ne marquez pas de point.
+            Vous serez un participant à part entière à la manche suivante.`, "");
+          setTimeout(() => bandeauReseau(""), 9000);
+        } else if (!m.reprise) ouvrirBrief(pet, m.nbFarters, m.hand.length);
         $("#memobox").dataset.sig = "";
         if (pet) majPression(0);
         majVisibilite();
@@ -1398,6 +1706,7 @@ function connect(nom, code) {
     }
   };
   ws.onclose = () => {
+    if (enSortie) return;                     // départ volontaire : rien à reprendre
     if (!partieEnCours) { $("#err").textContent = "Connexion perdue. Rechargez la page."; return; }
     const attente = Math.min(8000, 800 * Math.pow(1.6, tentatives++));
     bandeauReseau(`<b>Liaison interrompue.</b> Reprise de la séance dans ${Math.round(attente / 1000)} s…
@@ -1455,6 +1764,10 @@ function renderReveal(m) {
 }
 
 // --- interactions ------------------------------------------------------------
+const bq = $("#btnquitter"); if (bq) bq.onclick = demanderSortie;
+const so = $("#sortieoui"); if (so) so.onclick = quitterSeance;
+const sn = $("#sortienon"); if (sn) sn.onclick = () => $("#sortie").classList.add("hide");
+
 $("#go").onclick = async () => {
   const nom = $("#nom").value.trim() || "Anonyme";
   const code = $("#code").value.trim().toUpperCase();
@@ -1719,6 +2032,28 @@ const basculeRegl = (on) => {
   regl.setAttribute("aria-hidden", ouvert ? "false" : "true");
 };
 $("#reglouvre").onclick = () => basculeRegl(true);
+const lr = $("#lireregl"); if (lr) lr.onclick = () => basculeRegl(true);
+
+// ---------------------------------------------------------------------------
+// Détection du mobile
+//
+// On ne se fie pas au seul agent utilisateur, qui ment volontiers : on croise
+// avec le pointeur grossier et l'absence de survol, qui décrivent l'appareil
+// réel. L'avis n'apparaît que là où il sert.
+// ---------------------------------------------------------------------------
+const surMobile = (() => {
+  try {
+    const ua = /Android|iPhone|iPad|iPod|Mobile|Opera Mini|IEMobile/i.test(navigator.userAgent);
+    const tactile = matchMedia("(pointer: coarse)").matches && matchMedia("(hover: none)").matches;
+    return ua || (tactile && Math.min(screen.width, screen.height) < 900);
+  } catch { return false; }
+})();
+if (surMobile) {
+  const ma = $("#mobileavis"); if (ma) ma.classList.remove("hide");
+  // Le post-it décoratif est masqué sous 1180 px : on remonte l'essentiel dans le
+  // bandeau d'inscription, où il sera lu.
+  document.querySelectorAll(".casque .tampon-casque").forEach(e => e.remove());
+}
 $("#reglferme").onclick = () => basculeRegl(false);
 $("#reglfond").onclick = () => basculeRegl(false);
 document.addEventListener("keydown", (e) => {
@@ -1779,3 +2114,7 @@ if (pre) $("#code").value = pre.toUpperCase();
     };
   } catch {}
 })();
+
+// premières marges, pour l'écran d'accueil
+ecranCourant = "home";
+poserMarginalia();

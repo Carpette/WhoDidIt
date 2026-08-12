@@ -274,6 +274,135 @@ svg.tbl{width:100%;display:block}
 .siege{cursor:default}.siege.votable{cursor:pointer}
 .siege.votable:hover circle.pl{stroke:var(--rouille);stroke-width:3}
 
+
+
+
+/* ---------- décor de fond ---------- */
+/* Des documents de bureau posés là, en très faible contraste, derrière tout le
+   reste. Ils ne sont jamais entiers : chacun est coupé par le bord de l'écran,
+   ce qui suggère une pile plutôt qu'une illustration. Purement décoratif —
+   aucun texte utile n'y figure, rien n'est cliquable, rien n'est vocalisé. */
+.decor{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;display:none}
+@media(min-width:1180px){.decor{display:block}}
+.dec{position:absolute;opacity:.36}
+.dec .doc{background:#fdfbf3;border:1px solid rgba(45,40,55,.13);border-radius:3px;
+  box-shadow:0 10px 26px rgba(45,40,55,.05);padding:14px 16px}
+.dec .k{font-family:var(--mono);font-size:8.5px;font-weight:700;letter-spacing:.16em;
+  text-transform:uppercase;color:rgba(45,40,55,.3);margin:0 0 8px;border-bottom:1px solid rgba(45,40,55,.1);
+  padding-bottom:6px}
+.dec .li{display:flex;justify-content:space-between;gap:14px;font-family:var(--mono);font-size:9px;
+  color:rgba(45,40,55,.26);padding:4px 0;border-bottom:1px dotted rgba(45,40,55,.09)}
+.dec .li b{color:rgba(45,40,55,.34);font-weight:600}
+.dec .ttl{font-family:var(--serif);font-size:15px;color:rgba(45,40,55,.28);margin:0 0 3px}
+.dec .sub{font-family:var(--mono);font-size:8px;letter-spacing:.1em;color:rgba(45,40,55,.2);margin:0 0 10px}
+.dec svg{display:block}
+.dec .grand{font-family:var(--mono);font-size:26px;font-weight:700;color:rgba(45,40,55,.16);
+  letter-spacing:.04em;line-height:1}
+.dec-visa{border:3px double rgba(184,85,47,.22);border-radius:6px;padding:9px 14px;
+  font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
+  color:rgba(184,85,47,.22);line-height:1.4;text-align:center}
+.dec-manus{font-family:var(--hand);font-size:15px;color:rgba(74,63,42,.3);line-height:1.5}
+.dec-manus .barre{text-decoration:line-through;opacity:.65}
+
+/* le contenu passe au-dessus du décor */
+.feuille{z-index:1}
+
+/* ---------- marginalia ---------- */
+/* Notes de service, post-it et gribouillis dans les marges. Purement décoratif :
+   jamais dans le flux, jamais cliquable, jamais lu par un lecteur d'écran, et
+   masqué dès que la place manque. Le contenu du jeu ne dépend d'aucun d'eux. */
+.marges{position:fixed;inset:0;pointer-events:none;z-index:2;display:none}
+@media(min-width:1420px){.marges{display:block}}
+/* en séance la feuille monte à 1440 px : il faut un écran nettement plus large */
+@media(max-width:1899px){body.en-seance .marges{display:none}}
+/* « both » est indispensable : l'opacité finale est posée en ligne, et sans lui
+   l'élément clignoterait à sa valeur finale pendant le délai d'animation */
+.marge{position:absolute;animation:paraitre .9s ease both}
+@keyframes paraitre{from{opacity:0}}
+/* left/right sont posés en ligne par le script : chaque élément a son propre
+   décalage, certains négatifs pour mordre le bord de l'écran */
+.marge.g,.marge.d{text-align:left}
+
+.mg-note{font-family:var(--mono);font-size:9.5px;line-height:1.55;letter-spacing:.03em;
+  color:rgba(45,40,55,.46);background:rgba(253,251,243,.93);border:1px solid rgba(45,40,55,.13);
+  border-left:2px solid rgba(95,138,114,.35);border-radius:3px;padding:9px 11px}
+.mg-note b{color:rgba(45,40,55,.6);font-weight:700}
+.mg-note i{color:rgba(45,40,55,.4)}
+.mg-chrono{border-left-color:rgba(184,85,47,.35);line-height:1.65}
+.mg-note .obj{display:block;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  font-size:8.5px;color:rgba(184,85,47,.5);margin-bottom:4px}
+
+.mg-post{font-family:var(--hand);font-size:16.5px;line-height:1.28;color:#4a3f2a;padding:13px 14px;
+  background:linear-gradient(160deg,#fff3a3,#f7e689);box-shadow:1px 2px 4px rgba(45,40,55,.16),0 8px 14px rgba(45,40,55,.07)}
+.mg-post.rose{background:linear-gradient(160deg,#ffd6e0,#f5b9c8);color:#6a3a4a}
+.mg-post.bleu{background:linear-gradient(160deg,#cfe4f5,#b6d4ec);color:#2f4f6a}
+.mg-post.vert{background:linear-gradient(160deg,#d5efdd,#bfe3cb);color:#2f5a42}
+
+/* la note manuscrite n'a pas de cadre, mais il lui faut un fond : sans lui elle
+   se mélange aux documents du décor et devient illisible */
+.mg-main{font-family:var(--hand);font-size:17px;line-height:1.32;color:rgba(74,63,42,.78);
+  background:rgba(253,251,243,.9);border-radius:4px;padding:10px 12px 11px}
+.mg-main::before{content:"";display:block;width:34px;height:1px;background:rgba(45,40,55,.2);margin-bottom:7px}
+
+.mg-tampon{display:inline-block;background:rgba(253,251,243,.8);font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.16em;
+  text-transform:uppercase;color:rgba(184,85,47,.4);border:2px solid rgba(184,85,47,.3);
+  border-radius:4px;padding:5px 9px;line-height:1.3}
+.mg-tampon.sauge{color:rgba(95,138,114,.45);border-color:rgba(95,138,114,.35)}
+.mg-tampon.ardoise{color:rgba(74,111,165,.45);border-color:rgba(74,111,165,.35)}
+
+/* ---------- avis casque, écran d'accueil ---------- */
+.casque{position:relative;border:2px solid var(--rouille);border-radius:14px;
+  background:linear-gradient(180deg,#fbeee6,#f7e3d7);padding:22px 24px 18px;margin-bottom:22px;overflow:hidden}
+.casque::before{content:"";position:absolute;inset:5px;border:1px dashed rgba(184,85,47,.35);border-radius:10px;pointer-events:none}
+.casque-tete{display:flex;align-items:center;gap:14px;margin-bottom:12px}
+.casque-ico{flex:0 0 44px;width:44px;height:44px;color:var(--rouille)}
+.casque h3{font-family:var(--serif);font-size:22px;font-weight:600;margin:0;color:#8f3f20;letter-spacing:-.01em}
+.casque .sur{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--rouille);margin:0 0 2px}
+.casque p{font-family:var(--serif);font-size:14.5px;line-height:1.6;margin:0 0 10px;color:#5a3524}
+.casque p:last-child{margin-bottom:0}
+.casque b{color:#7a2c12}
+.casque .pourquoi{background:rgba(255,255,255,.6);border-left:3px solid var(--rouille);
+  border-radius:8px;padding:11px 14px;margin:12px 0}
+.casque .pourquoi .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--rouille);margin-bottom:5px}
+.casque .pourquoi p{font-size:13.5px;line-height:1.55;margin:0}
+.casque ul{list-style:none;margin:10px 0 0;padding:0}
+.casque li{font-family:var(--serif);font-size:14px;line-height:1.5;padding:7px 0 7px 26px;position:relative;color:#5a3524}
+.casque li::before{content:"✗";position:absolute;left:4px;top:6px;font-family:var(--mono);
+  font-weight:700;color:var(--rouille)}
+.casque li.ok::before{content:"✓";color:var(--ok)}
+.casque .tampon-casque{position:absolute;top:14px;right:18px;transform:rotate(9deg);
+  font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.16em;color:rgba(184,85,47,.55);
+  border:2px solid rgba(184,85,47,.4);border-radius:4px;padding:4px 9px;text-transform:uppercase}
+@media(max-width:640px){.casque{padding:17px 16px 14px}.casque h3{font-size:19px}.casque .tampon-casque{display:none}}
+
+/* ---------- appel au règlement ---------- */
+.lire{display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:space-between;
+  border:2px solid var(--sauge);border-radius:14px;background:linear-gradient(180deg,#eef5f0,#e4eee8);
+  padding:18px 22px;margin-bottom:22px}
+.lire-txt{flex:1;min-width:240px}
+.lire .sur{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--sauge);margin:0 0 3px}
+.lire h3{font-family:var(--serif);font-size:19px;font-weight:600;margin:0 0 6px;color:#2f6146}
+.lire p{font-family:var(--serif);font-size:14px;line-height:1.55;margin:0;color:#3d5a4a}
+.lire .btn{flex:0 0 auto}
+@media(max-width:640px){.lire{padding:15px 16px}.lire .btn{width:100%}}
+
+/* ---------- avis mobile ---------- */
+.mobile-avis{border:2px solid var(--ardoise);border-radius:14px;
+  background:linear-gradient(180deg,#eaf0f8,#dfe8f4);padding:20px 22px;margin-bottom:22px}
+.mobile-avis .sur{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--ardoise);margin:0 0 3px}
+.mobile-avis h3{font-family:var(--serif);font-size:19px;font-weight:600;margin:0 0 8px;color:#2f4f7a}
+.mobile-avis p{font-family:var(--serif);font-size:14px;line-height:1.6;margin:0 0 9px;color:#33465e}
+.mobile-avis p:last-child{margin-bottom:0}
+.mobile-avis b{color:#22364d}
+.mobile-avis .cle{background:rgba(255,255,255,.65);border-left:3px solid var(--ardoise);
+  border-radius:8px;padding:11px 14px;margin:11px 0}
+.mobile-avis ol{margin:9px 0 0;padding-left:20px}
+.mobile-avis li{font-family:var(--serif);font-size:14px;line-height:1.55;margin-bottom:7px;color:#33465e}
+
 /* ---------- réglages repliés ---------- */
 /* Pendant la séance, ces curseurs ne servent plus : ils se règlent une fois, à
    l'accueil. Repliés, ils libèrent la colonne pour ce qui compte à cet instant. */
@@ -322,6 +451,11 @@ svg.tbl{width:100%;display:block}
 .siege.votable:hover circle.pl{animation:none}
 
 /* ---------- briefing d'ouverture ---------- */
+#sortie{position:fixed;inset:0;z-index:1160;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(28,24,34,.72)}
+#sortie .carte-brief{background:var(--papier);border:2px solid var(--filet);border-radius:16px;max-width:520px;width:100%;padding:24px 28px 20px;box-shadow:0 26px 60px rgba(20,16,26,.45)}
+#sortie .bf-role{font-family:var(--serif);font-weight:600;margin:6px 0 2px;color:#8f3f20}
+#sortie .bf-sous{font-family:var(--serif);font-size:14.5px;line-height:1.5;color:var(--encre-doux);margin:0 0 18px}
+#sortie .bf-pied{display:flex;gap:10px;justify-content:flex-end}
 #brief{position:fixed;inset:0;z-index:1150;display:flex;align-items:center;justify-content:center;
   padding:20px;background:rgba(28,24,34,.72);backdrop-filter:blur(3px)}
 #brief .carte-brief{background:var(--papier);border:2px solid var(--filet);border-radius:16px;
@@ -358,6 +492,8 @@ svg.tbl{width:100%;display:block}
 
 /* ---------- règlement intérieur ---------- */
 .regl-ouvre{padding:6px 13px;font-size:11px}
+.regl-ouvre.quitter{background:transparent;border:1px solid var(--rouille);color:var(--rouille)}
+.regl-ouvre.quitter:hover:not(:disabled){background:var(--rouille);color:#fff}
 .kbd{font-family:var(--mono);font-size:9px;border:1px solid currentColor;border-radius:3px;
   padding:1px 4px;margin-left:5px;opacity:.65;text-transform:none;letter-spacing:0}
 .regl{position:fixed;inset:0;z-index:1100;pointer-events:none}
@@ -555,6 +691,98 @@ tr.exclu .nom{text-decoration:line-through;text-decoration-color:var(--rouille);
 }
 </style></head><body>
 
+<div class="decor" aria-hidden="true">
+
+  <!-- plan d'évacuation, en bas à gauche, coupé par le bord -->
+  <div class="dec" style="left:-70px;bottom:-40px;transform:rotate(-4deg)">
+    <div class="doc" style="width:330px">
+      <p class="k">Plan d'évacuation · Niveau 2 · Réf. M-08</p>
+      <svg viewBox="0 0 300 190" width="300" height="190">
+        <g fill="none" stroke="rgba(45,40,55,.18)" stroke-width="1.2">
+          <rect x="6" y="8" width="86" height="58"/><rect x="96" y="8" width="70" height="58"/>
+          <rect x="170" y="8" width="60" height="34"/><rect x="170" y="46" width="60" height="20"/>
+          <rect x="6" y="118" width="72" height="60"/><rect x="82" y="118" width="98" height="60"/>
+          <rect x="184" y="118" width="46" height="60"/>
+          <rect x="234" y="8" width="60" height="170"/>
+        </g>
+        <rect x="6" y="72" width="288" height="40" fill="rgba(45,40,55,.035)" stroke="rgba(45,40,55,.13)" stroke-width="1"/>
+        <text x="150" y="96" text-anchor="middle" style="fill:rgba(45,40,55,.24);font:600 8px 'IBM Plex Mono',monospace;letter-spacing:.16em">COULOIR</text>
+        <rect x="82" y="118" width="98" height="60" fill="rgba(184,85,47,.06)" stroke="rgba(184,85,47,.3)" stroke-width="1.6"/>
+        <text x="131" y="145" text-anchor="middle" style="fill:rgba(184,85,47,.42);font:700 9px 'IBM Plex Mono',monospace;letter-spacing:.1em">217 BIS</text>
+        <text x="131" y="159" text-anchor="middle" style="fill:rgba(184,85,47,.3);font:400 7px 'IBM Plex Mono',monospace;letter-spacing:.08em">VOUS ÊTES ICI</text>
+        <g stroke="rgba(95,138,114,.3)" stroke-width="1.4" fill="none">
+          <path d="M131 118 L131 100"/><path d="M131 100 L262 100"/>
+        </g>
+        <path d="M258 96 l8 4 -8 4 z" fill="rgba(95,138,114,.35)"/>
+        <text x="264" y="118" text-anchor="end" style="fill:rgba(95,138,114,.35);font:400 7px 'IBM Plex Mono',monospace;letter-spacing:.1em">SORTIE</text>
+        <g stroke="rgba(184,85,47,.3)" stroke-width="1.3">
+          <path d="M182 20 l14 14 M196 20 l-14 14"/><path d="M26 132 l12 12 M38 132 l-12 12"/>
+        </g>
+        <text x="6" y="188" style="fill:rgba(45,40,55,.18);font:400 7px 'IBM Plex Mono',monospace;letter-spacing:.1em">ÉCH. 1:200 · AUCUNE OUVERTURE SUR L'EXTÉRIEUR</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- relevé d'ambiance, en haut à droite, coupé -->
+  <div class="dec" style="right:-58px;top:92px;transform:rotate(2.5deg)">
+    <div class="doc" style="width:300px">
+      <p class="k">Relevé d'ambiance · Salle 217 bis</p>
+      <p class="ttl">Indicateurs de séance</p>
+      <p class="sub">Source : Service des Moyens Généraux · Trim. 3</p>
+      <div class="li"><span>Renouvellement d'air</span><b>0,2 vol/h</b></div>
+      <div class="li"><span>Norme recommandée</span><b>4,0 vol/h</b></div>
+      <div class="li"><span>Ouvrants</span><b>0</b></div>
+      <div class="li"><span>Réclamations reçues</span><b>31</b></div>
+      <div class="li"><span>Réclamations traitées</span><b>0</b></div>
+      <div class="li"><span>Départs volontaires</span><b>3</b></div>
+      <svg viewBox="0 0 268 46" width="268" height="46" style="margin-top:10px">
+        <path d="M0 40 L26 38 L52 33 L78 34 L104 26 L130 24 L156 15 L182 17 L208 8 L234 6 L262 2"
+              fill="none" stroke="rgba(184,85,47,.28)" stroke-width="1.6"/>
+        <line x1="0" y1="44" x2="268" y2="44" stroke="rgba(45,40,55,.12)"/>
+        <text x="0" y="12" style="fill:rgba(45,40,55,.2);font:400 7px 'IBM Plex Mono',monospace;letter-spacing:.1em">TENDANCE — 12 DERNIERS MOIS</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- note manuscrite du Secrétariat, à gauche en haut -->
+  <div class="dec" style="left:-46px;top:150px;transform:rotate(-2deg)">
+    <div class="doc" style="width:250px">
+      <p class="k">Note manuscrite · SG · 14h47</p>
+      <div class="dec-manus">
+        — Relancer la maintenance<br>
+        <span class="barre">— Convoquer Bernard</span><br>
+        — Prévoir bougies (refusé)<br>
+        — Vérifier filtres 217 bis<br>
+        <span class="barre">— Rouvrir dossier fenêtre</span><br>
+        — Ne pas ébruiter<br>
+        <span style="display:block;text-align:right;margin-top:8px">— Q.S.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- fiche d'émargement, en bas à droite -->
+  <div class="dec" style="right:-40px;bottom:-30px;transform:rotate(3deg)">
+    <div class="doc" style="width:230px">
+      <p class="k">Feuille d'émargement · 04-B</p>
+      <div class="li"><span>Siège 01</span><b>présent</b></div>
+      <div class="li"><span>Siège 02</span><b>présent</b></div>
+      <div class="li"><span>Siège 03</span><b>présent</b></div>
+      <div class="li"><span>Siège 04</span><b>présent</b></div>
+      <div class="li"><span>Siège 05</span><b>présent</b></div>
+      <div class="li"><span>Siège 06</span><b>—</b></div>
+      <p class="sub" style="margin:10px 0 0">Nul n'a quitté la salle avant 17h.</p>
+    </div>
+  </div>
+
+  <!-- visa, très haut à droite -->
+  <div class="dec" style="right:210px;top:96px;transform:rotate(-11deg)">
+    <div class="dec-visa">Visa apposé<br>14h32 · SG</div>
+  </div>
+
+</div>
+
+<div class="marges" id="marges" aria-hidden="true"></div>
+
 <div class="coins">
   <div class="coin hg">SÉANCE 04-B<br>SALLE 217 BIS</div>
   <div class="coin bg">FORM. PV-6<br>ÉD. AOÛT 2026</div>
@@ -579,6 +807,7 @@ tr.exclu .nom{text-decoration:line-through;text-decoration-color:var(--rouille);
   </div>
   <div class="bandeau-meta">
     <button class="btn regl-ouvre" id="reglouvre" title="Règlement intérieur — touche ?">Règlement</button>
+    <button class="btn regl-ouvre quitter hide" id="btnquitter" title="Quitter la séance et libérer votre place">Quitter</button>
     <span class="ref hide" id="refcode">— — — —</span>
     <span class="pastille off" id="etat">hors séance</span>
   </div>
@@ -589,9 +818,92 @@ tr.exclu .nom{text-decoration:line-through;text-decoration-color:var(--rouille);
 
 <!-- ================= CONVOCATION ================= -->
 <section id="home">
-  <div class="postit" style="top:250px;right:-40px;transform:rotate(4deg)">Casque obligatoire.<br>Sinon ça marche pas,<br>et c'est de ta faute.</div>
-
   <div class="reprise hide" id="reprise"></div>
+
+  <!-- ============ AVIS CASQUE ============ -->
+  <div class="casque">
+    <span class="tampon-casque">Non négociable</span>
+    <div class="casque-tete">
+      <svg class="casque-ico" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M9 30v-6a15 15 0 0 1 30 0v6"/>
+        <rect x="4" y="28" width="9" height="14" rx="4" fill="currentColor" fill-opacity=".15"/>
+        <rect x="35" y="28" width="9" height="14" rx="4" fill="currentColor" fill-opacity=".15"/>
+      </svg>
+      <div>
+        <p class="sur">Article premier du règlement</p>
+        <h3>Sans casque, vous ne jouez pas. Vous assistez.</h3>
+      </div>
+    </div>
+
+    <p>Ce n'est pas une recommandation de confort, ni une coquetterie d'ingénieur du son.
+    <b>C'est la seule règle dont dépend l'existence même du jeu.</b> Tout ici repose sur votre
+    capacité à dire d'où vient un bruit. Enlevez le casque, et il ne reste qu'une réunion.</p>
+
+    <div class="pourquoi">
+      <div class="k">Pour ceux que ça intéresse vraiment</div>
+      <p>Votre cerveau situe un son grâce à l'<b>écart entre vos deux oreilles</b> — quelques
+      dixièmes de milliseconde de décalage, quelques décibels de différence. Les sons de cette
+      séance ont été calculés un par un, position par position, avec des filtres mesurés sur une
+      tête humaine réelle. Sur des haut-parleurs, <b>vos deux oreilles entendent les deux canaux
+      à la fois</b> : l'écart est détruit avant même d'arriver à vous. Il n'y a aucun réglage,
+      aucun bouton, aucune astuce. C'est de la physique, et elle n'est pas négociable.</p>
+    </div>
+
+    <ul>
+      <li>Haut-parleurs d'ordinateur — <b>vous n'entendrez jamais d'où ça vient.</b> Vous voterez à pile ou face.</li>
+      <li>Enceinte Bluetooth posée sur le bureau — même chose, en plus fort.</li>
+      <li>Un seul écouteur, parce que l'autre est perdu — la moitié des indices, donc aucun.</li>
+      <li>Le casque autour du cou pendant que ça joue — le Comité vous voit.</li>
+      <li class="ok">Casque ou écouteurs, <b>les deux oreilles couvertes</b>, dans le bon sens — le jeu fonctionne.</li>
+    </ul>
+
+    <p style="margin-top:12px"><b>Et vérifiez le sens.</b> Gauche à gauche, droite à droite.
+    Un casque à l'envers ne casse pas le jeu : il l'inverse silencieusement, et vous accuserez
+    consciencieusement la mauvaise personne pendant toute la partie. L'essai acoustique de la salle
+    d'attente est là pour ça — <b>trente secondes</b>, et vous saurez.</p>
+  </div>
+
+  <!-- ============ APPEL AU RÈGLEMENT ============ -->
+  <div class="lire">
+    <div class="lire-txt">
+      <p class="sur">Avant de vous présenter</p>
+      <h3>Lisez le règlement. Trois minutes.</h3>
+      <p>Ce n'est pas un jeu qu'on comprend en jouant : quand vous aurez compris, la manche sera finie.
+      Le règlement tient en neuf articles illustrés — le déroulement d'une séance, pourquoi la table est
+      ronde, le débat contradictoire, la pression, et le barème. <b>Ceux qui l'ont lu gagnent.</b></p>
+    </div>
+    <button class="btn p" id="lireregl">Ouvrir le règlement <span class="kbd">?</span></button>
+  </div>
+
+  <!-- ============ AVIS MOBILE (affiché uniquement sur téléphone) ============ -->
+  <div class="mobile-avis hide" id="mobileavis">
+    <p class="sur">Vous êtes sur un téléphone</p>
+    <h3>Ça marche très bien. À une condition.</h3>
+    <p>Le jeu est parfaitement jouable sur mobile, en tenant l'appareil ou en le posant.
+    Mais il y a un piège, et il n'est pas évident.</p>
+
+    <div class="cle">
+      <p><b>N'utilisez pas le microphone de votre casque. Utilisez celui du téléphone.</b>
+      Dès qu'un téléphone capte le micro d'un casque Bluetooth, la liaison bascule du profil
+      musique vers le profil « mains libres » : <b>mono, et de qualité téléphonique</b>. La
+      spatialisation disparaît instantanément — vous entendrez les pets, mais plus jamais d'où
+      ils viennent. Le téléphone, lui, a un excellent micro qui ne dérange rien.</p>
+    </div>
+
+    <ol>
+      <li>Mettez votre casque, <b>sans</b> l'utiliser comme micro.</li>
+      <li>En salle d'attente, ouvrez <b>« Microphone utilisé »</b> et choisissez celui du téléphone
+      plutôt que celui du casque.</li>
+      <li>Lancez l'essai acoustique : le souffle doit se déplacer de droite à gauche. S'il ne bouge
+      pas, vous êtes encore sur le micro du casque.</li>
+    </ol>
+
+    <p style="margin-top:11px"><b>Un casque filaire supprime le problème</b> — il n'y a pas de profil
+    à basculer. Si vous en avez un, prenez-le.</p>
+    <p><b>Gardez l'écran allumé.</b> Le jeu demande à votre téléphone de ne pas se verrouiller, mais
+    si vous basculez sur une autre application, le son se suspend et vous manquerez tout.</p>
+  </div>
 
   <div class="note">
     <span class="tampon">Convocation</span>
@@ -623,6 +935,9 @@ tr.exclu .nom{text-decoration:line-through;text-decoration-color:var(--rouille);
       <span>Activer le traitement micro (annulation d'écho)<br>
       <span class="aide" style="margin:0">À cocher <b>uniquement</b> si vous n'avez pas de casque. Ce traitement
       dégrade fortement la spatialisation.</span></span></label>
+    <p class="aide" style="margin-top:16px;padding:10px 13px;background:var(--rouille-tint);
+      border-radius:8px;color:#8f3f20"><b>Dernier rappel.</b> Casque sur les oreilles, gauche à gauche.
+      Sinon, autant jouer à pile ou face — ce sera plus rapide.</p>
     <div class="rangee"><button class="btn p" id="go">Se présenter</button></div>
     <p class="err" id="err"></p>
   </div>
@@ -630,9 +945,6 @@ tr.exclu .nom{text-decoration:line-through;text-decoration-color:var(--rouille);
 
 <!-- ================= FEUILLE D'ÉMARGEMENT ================= -->
 <section id="lobby" class="hide">
-  <div class="postit rose" style="top:170px;right:-46px;transform:rotate(-5deg)">Essayer le casque
-    AVANT de commencer.<br>On a l'air malin sinon.</div>
-
   <div class="seance-tete">
     <div style="flex:1">
       <p class="eyebrow">Salle d'attente</p>
@@ -835,6 +1147,11 @@ tr.exclu .nom{text-decoration:line-through;text-decoration-color:var(--rouille);
 
       <p class="regl-preambule">Une réunion se tient. Deux personnes débattent, les autres écoutent.
       Et pendant tout ce temps, quelqu'un pète.</p>
+
+      <p class="regl-preambule" style="border-color:var(--rouille);color:#8f3f20">
+      <b>Article zéro, dont tout le reste dépend : le casque.</b> Le jeu ne consiste pas à entendre un
+      bruit, mais à savoir <b>d'où il vient</b>. Sur haut-parleurs, cette information n'existe pas —
+      elle est détruite avant d'arriver à vos oreilles. Aucun réglage ne la restitue.</p>
 
       <!-- ============ EN BREF ============ -->
       <section class="art">
@@ -1041,22 +1358,52 @@ tr.exclu .nom{text-decoration:line-through;text-decoration-color:var(--rouille);
         marque rien du tout. Et le Comité rémunère la prise de risque, jamais la prudence.</p>
       </section>
 
+      <!-- ============ L'ÉCRAN ============ -->
+      <section class="art">
+        <h3><span class="num">Article 8</span> Ce que montre l'écran</h3>
+        <p>L'écran ne montre que ce qui sert à la phase en cours, dans votre rôle. Si un élément
+        disparaît, ce n'est pas une panne : c'est qu'il n'a rien à vous apprendre à cet instant.</p>
+        <p><b>À l'ouverture</b> — un panneau annonce votre rôle et les trois gestes qui comptent. Il se
+        ferme tout seul quand la séance s'ouvre. Un <b>aide-mémoire</b> en reprend l'essentiel dans la
+        colonne de gauche, en permanence.</p>
+        <p><b>À chaque changement de phase</b> — une annonce dit ce qu'il faut faire :
+        <em>écoutez</em>, <em>à vous</em>, <em>votez</em>, <em>délibérez</em>. Elle ne bloque jamais le
+        clic ; vous pouvez agir pendant qu'elle est affichée.</p>
+        <p><b>Pour voter</b> — le plan de salle s'encadre de rouge et les sièges se mettent à battre.
+        <b>On vote en cliquant sur un siège</b>, jamais ailleurs. Une voix chacun, sans retour en arrière.</p>
+        <p><b>Le carnet</b>, à droite, est strictement personnel : rien de ce que vous y écrivez n'est
+        transmis. Il survit à un rechargement de page.</p>
+        <p class="art-note">Le plan de salle est votre unique instrument. Les pastilles vous disent qui
+        parle, les positions vous disent d'où. Le reste, c'est de la mise en scène administrative.</p>
+      </section>
+
       <!-- ============ TECHNIQUE ============ -->
       <section class="art">
-        <h3><span class="num">Article 8</span> Dispositions techniques</h3>
+        <h3><span class="num">Article 9</span> Dispositions techniques</h3>
         <p><b>Essai acoustique</b> — en salle d'attente, avant toute séance. Deux bips de contrôle
         vérifient la stéréo, puis un souffle parcourt les cinq positions.</p>
         <p><b>Seuil du micro</b> — la jauge passe au vert quand votre micro s'ouvre. Montez le seuil
         jusqu'à ce qu'elle reste grise au clavier et verte à la parole. Vous vous entendez au niveau exact
         auquel la table vous entend.</p>
-        <p><b>Pastilles du plan</b> — vert : la voix de ce participant vous parvient · orange : liaison
-        établie mais muette · rouge : liaison échouée.</p>
-        <p><b>Coupure</b> — votre siège est conservé. Rechargez la page et reprenez votre place.</p>
+        <p><b>Ce que la table reçoit</b> — la seconde jauge, sous la première. Elle ne mesure pas votre
+        micro mais <b>ce qui quitte réellement votre machine</b>. Les deux sont indépendantes : la
+        première peut bouger pendant que la seconde reste grise, et dans ce cas personne ne vous entend.
+        Si cela arrive plus de neuf secondes, le jeu bascule tout seul sur une émission brute, sans
+        traitement. Un bouton permet aussi de le forcer.</p>
+        <p><b>Pastilles du plan</b> — vert : on entend ce participant en ce moment · gris : liaison saine,
+        il ne parle pas · orange : liaison établie mais <b>jamais un son reçu</b> · rouge : liaison échouée.
+        Seuls l'orange et le rouge signalent un problème.</p>
+        <p><b>Coupure</b> — votre siège est conservé jusqu'à la fin de la partie. Rechargez la page et
+        reprenez votre place, votre rôle, vos pièces et votre score.</p>
+        <p><b>Quitter volontairement</b> — le bouton <em>Quitter</em>, en haut de l'écran. Là, votre place
+        est libérée immédiatement : c'est ce qui distingue un départ d'une coupure. Vous pouvez revenir
+        aussitôt, même en pleine séance — mais sans pièce ni point pour la manche entamée.</p>
         <p class="art-note"><b>Casque Bluetooth.</b> Dès qu'on utilise son microphone, un casque
         Bluetooth quitte la stéréo pour un canal de communication monophonique : la spatialisation
         devient impossible, et aucun réglage n'y change rien. Choisissez le <b>microphone intégré</b>
         de l'appareil — le casque reste alors en stéréo — ou jouez en <b>filaire</b>. Le jeu détecte
-        le cas et vous prévient.</p>
+        le cas et vous prévient. <b>Sur téléphone, la consigne est la même</b> : le micro de l'appareil,
+        jamais celui du casque.</p>
       </section>
 
       <p class="regl-pied">Fait en séance — le Secrétariat · Form. PV-6 · Éd. août 2026</p>
@@ -1070,6 +1417,17 @@ tr.exclu .nom{text-decoration:line-through;text-decoration-color:var(--rouille);
 
 <div id="brief" class="hide"></div>
 <div id="annonce"></div>
+<div id="sortie" class="hide">
+  <div class="carte-brief">
+    <span class="tampon">Retrait de séance</span>
+    <h2 class="bf-role" style="font-size:23px">Quitter la séance ?</h2>
+    <p class="bf-sous" id="sortietxt">Votre place sera libérée immédiatement et vous ne pourrez pas revenir sur cette manche.</p>
+    <div class="bf-pied">
+      <button class="btn" id="sortienon">Rester</button>
+      <button class="btn d" id="sortieoui">Quitter la séance</button>
+    </div>
+  </div>
+</div>
 <div id="blanc" class="hide"><div class="t">SILENCE</div><p class="s">micros coupés — la séance est suspendue</p></div>
 <div class="flash" id="flash"></div>
 <script src="app.js"></script></body></html>
