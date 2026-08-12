@@ -1,0 +1,6 @@
+# L'image de production n'a besoin que du serveur et de public/.
+node_modules
+npm-debug.log*
+.DS_Store
+README.md
+tools/

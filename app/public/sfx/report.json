@@ -1,0 +1,167 @@
+{
+ "pet_strain": {
+  "ild60": -15.8,
+  "ild30": -8.7,
+  "lvl12": 7.4
+ },
+ "pet_dirty-long": {
+  "ild60": -12.2,
+  "ild30": -7.7,
+  "lvl12": 6.1
+ },
+ "pet_humide-2": {
+  "ild60": -10.9,
+  "ild30": -5.6,
+  "lvl12": 4.3
+ },
+ "pet_rec1s": {
+  "ild60": -10.8,
+  "ild30": -6.4,
+  "lvl12": 4.3
+ },
+ "pet_bouche-splat": {
+  "ild60": -10.1,
+  "ild30": -4.9,
+  "lvl12": 4.5
+ },
+ "pet_squeak": {
+  "ild60": -10.1,
+  "ild30": -5.4,
+  "lvl12": 4.4
+ },
+ "pet_ketchup": {
+  "ild60": -9.0,
+  "ild30": -3.9,
+  "lvl12": 4.1
+ },
+ "pet_bugleboy": {
+  "ild60": -8.9,
+  "ild30": -4.6,
+  "lvl12": 4.3
+ },
+ "pet_puka-court": {
+  "ild60": -8.5,
+  "ild30": -3.9,
+  "lvl12": 4.3
+ },
+ "pet_taco": {
+  "ild60": -8.6,
+  "ild30": -4.5,
+  "lvl12": 3.8
+ },
+ "pet_toot-long": {
+  "ild60": -7.2,
+  "ild30": -3.2,
+  "lvl12": 3.6
+ },
+ "pet_krack": {
+  "ild60": -4.4,
+  "ild30": -1.8,
+  "lvl12": 1.1
+ },
+ "pet_aigu-court": {
+  "ild60": -4.3,
+  "ild30": -1.2,
+  "lvl12": 2.2
+ },
+ "pet_record21": {
+  "ild60": -7.6,
+  "ild30": -4.7,
+  "lvl12": 2.0
+ },
+ "pet_sourd": {
+  "ild60": -3.4,
+  "ild30": -2.2,
+  "lvl12": 2.5
+ },
+ "pet_crazy-2": {
+  "ild60": -13.2,
+  "ild30": -7.8,
+  "lvl12": 5.5
+ },
+ "pet_blubber-2": {
+  "ild60": -12.4,
+  "ild30": -6.9,
+  "lvl12": 5.3
+ },
+ "pet_crazy-1": {
+  "ild60": -11.3,
+  "ild30": -6.5,
+  "lvl12": 4.0
+ },
+ "pet_blubber-1": {
+  "ild60": -10.7,
+  "ild30": -5.7,
+  "lvl12": 5.0
+ },
+ "pet_bassimat": {
+  "ild60": -10.2,
+  "ild30": -5.8,
+  "lvl12": 4.2
+ },
+ "pet_chili-bad": {
+  "ild60": -9.7,
+  "ild30": -5.6,
+  "lvl12": 3.6
+ },
+ "pet_queef": {
+  "ild60": -8.7,
+  "ild30": -4.6,
+  "lvl12": 3.7
+ },
+ "pet_flasque-2": {
+  "ild60": -6.7,
+  "ild30": -4.5,
+  "lvl12": 2.2
+ },
+ "pet_flasque-3": {
+  "ild60": -6.7,
+  "ild30": -4.0,
+  "lvl12": 2.5
+ },
+ "pet_flasque-1": {
+  "ild60": -6.8,
+  "ild30": -3.4,
+  "lvl12": 2.9
+ },
+ "pet_flasque-7": {
+  "ild60": -6.2,
+  "ild30": -4.1,
+  "lvl12": 1.9
+ },
+ "pet_flasque-4": {
+  "ild60": -5.8,
+  "ild30": -4.1,
+  "lvl12": 2.0
+ },
+ "pet_cuvette-1": {
+  "ild60": -6.8,
+  "ild30": -2.1,
+  "lvl12": 3.9
+ },
+ "pet_trompette-1": {
+  "ild60": -4.4,
+  "ild30": -1.7,
+  "lvl12": 2.1
+ },
+ "pet_trompette-2": {
+  "ild60": -4.1,
+  "ild30": -2.2,
+  "lvl12": 2.1
+ },
+ "pet_flasque-6": {
+  "ild60": -3.9,
+  "ild30": -2.2,
+  "lvl12": 1.5
+ },
+ "pet_flasque-5": {
+  "ild60": -2.4,
+  "ild30": -2.7,
+  "lvl12": 0.6
+ },
+ "pet_incident": {
+  "ild60": -9.5,
+  "ild30": -5.3,
+  "lvl12": 3.9
+ }
+}

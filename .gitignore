@@ -1,0 +1,39 @@
+# --- dépendances et artefacts de build ---
+node_modules/
+npm-debug.log*
+*.tsbuildinfo
+
+# --- systèmes de fichiers ---
+.DS_Store
+._*
+Thumbs.db
+desktop.ini
+
+# --- éditeurs ---
+.vscode/
+.idea/
+*.swp
+
+# --- corbeille locale ---
+# Le dossier _to_delete sert de corbeille : Cowork ne peut pas supprimer sur le
+# disque, il y déplace ce qui doit disparaître. 120 Mo qui n'ont rien à faire ici.
+_to_delete/
+
+# --- archives de travail ---
+*.zip
+*.tgz
+*.tar.gz
+
+# --- rendus obsolètes ---
+# Sounds_spatialized/ est l'ANCIENNE génération de rendus binauraux (14 Mo),
+# entièrement remplacée par app/public/sfx/. On garde les sources (Sounds/,
+# Sounds_edit/) et les rendus SERVIS (app/public/sfx/), pas les intermédiaires.
+Sounds_spatialized/
+
+# --- fichiers d'écoute temporaires produits lors des mises au point ---
+/ecoute_*.mp3
+
+# --- secrets ---
+.env
+.env.*
+!.env.example
