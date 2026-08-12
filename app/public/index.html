@@ -377,17 +377,28 @@ svg.tbl{width:100%;display:block}
   border:2px solid rgba(184,85,47,.4);border-radius:4px;padding:4px 9px;text-transform:uppercase}
 @media(max-width:640px){.casque{padding:17px 16px 14px}.casque h3{font-size:19px}.casque .tampon-casque{display:none}}
 
-/* ---------- appel au règlement ---------- */
-.lire{display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:space-between;
-  border:2px solid var(--sauge);border-radius:14px;background:linear-gradient(180deg,#eef5f0,#e4eee8);
-  padding:18px 22px;margin-bottom:22px}
-.lire-txt{flex:1;min-width:240px}
+/* ---------- les règles sur l'accueil ---------- */
+
+.lire{display:block;border:2px solid var(--sauge);border-radius:14px;
+  background:linear-gradient(180deg,#eef5f0,#e4eee8);padding:20px 24px 18px;margin-bottom:22px}
 .lire .sur{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.2em;
   text-transform:uppercase;color:var(--sauge);margin:0 0 3px}
-.lire h3{font-family:var(--serif);font-size:19px;font-weight:600;margin:0 0 6px;color:#2f6146}
-.lire p{font-family:var(--serif);font-size:14px;line-height:1.55;margin:0;color:#3d5a4a}
-.lire .btn{flex:0 0 auto}
-@media(max-width:640px){.lire{padding:15px 16px}.lire .btn{width:100%}}
+.lire h3{font-family:var(--serif);font-size:21px;font-weight:600;margin:0 0 12px;color:#2f6146}
+.lire .essentiel{list-style:none;counter-reset:e;margin:0;padding:0}
+.lire .essentiel li{counter-increment:e;position:relative;padding:8px 0 8px 34px;
+  font-family:var(--serif);font-size:15px;line-height:1.5;color:#31513f;
+  border-top:1px dashed rgba(95,138,114,.3)}
+.lire .essentiel li:first-child{border-top:none}
+.lire .essentiel li::before{content:counter(e);position:absolute;left:0;top:9px;width:22px;height:22px;
+  border-radius:50%;background:var(--sauge);color:#fff;font-family:var(--mono);font-size:11px;
+  font-weight:700;display:flex;align-items:center;justify-content:center}
+.lire .essentiel b{color:#1f4432}
+.lire .rassure{font-size:13.5px;line-height:1.6;color:#3d5a4a;margin:14px 0 0;
+  padding-top:12px;border-top:1px solid rgba(95,138,114,.25)}
+.btn.lien{background:transparent;border:none;padding:0 0 0 4px;color:var(--sauge);
+  text-decoration:underline;text-underline-offset:3px;font-size:13px;cursor:pointer}
+.btn.lien:hover{background:transparent;color:#2f6146}
+@media(max-width:640px){.lire{padding:16px 16px 14px}.lire h3{font-size:18px}.lire .essentiel li{font-size:14px}}
 
 /* ---------- avis mobile ---------- */
 .mobile-avis{border:2px solid var(--ardoise);border-radius:14px;
@@ -513,6 +524,32 @@ svg.tbl{width:100%;display:block}
 .regl-preambule{font-family:var(--serif);font-style:italic;font-size:14.5px;color:var(--encre-doux);
   border-left:3px solid var(--sauge);padding:2px 0 2px 14px;margin:0 0 26px}
 .art{margin-bottom:26px}
+
+/* Articles repliés par défaut.
+   Le retour des joueurs était sans appel : « bien trop compliqué pour un Among
+   Us avec des pets ». Ils avaient raison — neuf articles illustrés ouverts d'un
+   coup, c'est un manuel, pas des règles. L'essentiel reste visible, le reste se
+   déplie à la demande. */
+.art-pli{margin-bottom:9px;border:1px solid var(--filet);border-radius:9px;
+  background:var(--papier-clair);padding:0}
+.art-pli summary{cursor:pointer;list-style:none;padding:11px 14px;
+  font-family:var(--serif);font-size:15px;font-weight:600;color:var(--encre);
+  display:flex;align-items:baseline;gap:9px;border-radius:9px}
+.art-pli summary::-webkit-details-marker{display:none}
+.art-pli summary::after{content:"+";margin-left:auto;font-family:var(--mono);font-size:15px;
+  color:var(--sauge);font-weight:700;line-height:1}
+.art-pli[open] summary::after{content:"–"}
+.art-pli[open] summary{border-bottom:1px dashed var(--filet);border-radius:9px 9px 0 0}
+.art-pli summary:hover{background:rgba(95,138,114,.06)}
+.art-pli summary .num{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--sauge);flex:0 0 auto}
+.art-pli > *:not(summary){margin-left:14px;margin-right:14px}
+.art-pli > *:first-of-type:not(summary){margin-top:12px}
+.art-pli > *:last-child{margin-bottom:14px}
+
+.regl-court{font-size:13.5px;line-height:1.6;background:rgba(95,138,114,.08);
+  border-left:3px solid var(--sauge);border-radius:4px;padding:11px 14px;margin:0 0 22px;color:var(--encre-doux)}
+.regl-court b{color:#2f6146}
 .art h3{font-family:var(--serif);font-size:17px;font-weight:600;margin:0 0 8px;
   border-bottom:1px dashed var(--filet);padding-bottom:7px}
 .art h3 .num{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.14em;
@@ -820,6 +857,21 @@ tr.exclu .nom{text-decoration:line-through;text-decoration-color:var(--rouille);
 <section id="home">
   <div class="reprise hide" id="reprise"></div>
 
+  <!-- ============ LES RÈGLES, SUR PLACE ============ -->
+  <div class="lire">
+    <p class="sur">Les règles, en trente secondes</p>
+    <h3>C'est un Among Us avec des pets. Voilà tout.</h3>
+    <ol class="essentiel">
+      <li><b>Quelqu'un pète</b>, et vous ne savez pas qui. Un ou deux participants, selon l'effectif.</li>
+      <li>Le seul indice est <b>la direction du son</b>. Rien à l'écran ne dit qui a fait quoi.</li>
+      <li><b>Vous avez une carte vous aussi</b>, même si vous êtes innocent. Servez-vous-en : brouiller les pistes est le but.</li>
+      <li><b>Parlez.</b> Se taire ne protège personne — un siège silencieux est signalé au moment du vote.</li>
+      <li>À la fin, <b>vous cliquez sur un siège</b> pour désigner le responsable.</li>
+    </ol>
+    <p class="rassure">Le reste s'apprend en jouant : le jeu vous annonce chaque étape et vous dit quoi faire.
+    <button class="btn lien" id="lireregl">Le règlement complet, si vous y tenez <span class="kbd">?</span></button></p>
+  </div>
+
   <!-- ============ AVIS CASQUE ============ -->
   <div class="casque">
     <span class="tampon-casque">Non négociable</span>
@@ -862,18 +914,6 @@ tr.exclu .nom{text-decoration:line-through;text-decoration-color:var(--rouille);
     Un casque à l'envers ne casse pas le jeu : il l'inverse silencieusement, et vous accuserez
     consciencieusement la mauvaise personne pendant toute la partie. L'essai acoustique de la salle
     d'attente est là pour ça — <b>trente secondes</b>, et vous saurez.</p>
-  </div>
-
-  <!-- ============ APPEL AU RÈGLEMENT ============ -->
-  <div class="lire">
-    <div class="lire-txt">
-      <p class="sur">Avant de vous présenter</p>
-      <h3>Lisez le règlement. Trois minutes.</h3>
-      <p>Ce n'est pas un jeu qu'on comprend en jouant : quand vous aurez compris, la manche sera finie.
-      Le règlement tient en neuf articles illustrés — le déroulement d'une séance, pourquoi la table est
-      ronde, le débat contradictoire, la pression, et le barème. <b>Ceux qui l'ont lu gagnent.</b></p>
-    </div>
-    <button class="btn p" id="lireregl">Ouvrir le règlement <span class="kbd">?</span></button>
   </div>
 
   <!-- ============ AVIS MOBILE (affiché uniquement sur téléphone) ============ -->
@@ -1148,10 +1188,14 @@ tr.exclu .nom{text-decoration:line-through;text-decoration-color:var(--rouille);
       <p class="regl-preambule">Une réunion se tient. Deux personnes débattent, les autres écoutent.
       Et pendant tout ce temps, quelqu'un pète.</p>
 
+      <p class="regl-court"><b>Vous n'avez pas besoin de lire ce qui suit pour jouer.</b>
+      Les quatre lignes ci-dessous suffisent, et le jeu vous annonce chaque étape au moment où elle
+      arrive. Les articles sont dépliables — ils sont là pour ceux qui veulent comprendre pourquoi
+      ça marche, ou qui contestent un point de barème.</p>
+
       <p class="regl-preambule" style="border-color:var(--rouille);color:#8f3f20">
-      <b>Article zéro, dont tout le reste dépend : le casque.</b> Le jeu ne consiste pas à entendre un
-      bruit, mais à savoir <b>d'où il vient</b>. Sur haut-parleurs, cette information n'existe pas —
-      elle est détruite avant d'arriver à vos oreilles. Aucun réglage ne la restitue.</p>
+      <b>La seule règle non négociable : le casque.</b> Le jeu ne consiste pas à entendre un bruit,
+      mais à savoir <b>d'où il vient</b>. Sur haut-parleurs, cette information n'existe pas.</p>
 
       <!-- ============ EN BREF ============ -->
       <section class="art">
@@ -1165,8 +1209,7 @@ tr.exclu .nom{text-decoration:line-through;text-decoration-color:var(--rouille);
       </section>
 
       <!-- ============ DÉROULEMENT ============ -->
-      <section class="art">
-        <h3><span class="num">Article 1</span> Le déroulement d'une séance</h3>
+      <details class="art art-pli"><summary><span class="num">Article 1</span> Le déroulement d'une séance</summary>
         <svg viewBox="0 0 560 118" class="sch">
           <g class="sch-bar">
             <rect x="0"   y="26" width="52"  height="26" rx="4" fill="#e5ebf4" stroke="#4a6fa5"/>
@@ -1195,11 +1238,10 @@ tr.exclu .nom{text-decoration:line-through;text-decoration-color:var(--rouille);
           <text x="463" y="95" class="sch-t">silence</text>
           <text x="0" y="14" class="sch-lg">Les pièces sonores sont jouables sur toute la durée, y compris pendant les votes.</text>
         </svg>
-      </section>
+      </details>
 
       <!-- ============ LA TABLE ============ -->
-      <section class="art">
-        <h3><span class="num">Article 2</span> La table, et pourquoi elle est ronde</h3>
+      <details class="art art-pli"><summary><span class="num">Article 2</span> La table, et pourquoi elle est ronde</summary>
         <div class="sch-duo">
           <svg viewBox="0 0 240 250" class="sch">
             <circle cx="120" cy="118" r="58" fill="#fdfbf3" stroke="#d9cfbb" stroke-width="1.4"/>
@@ -1229,11 +1271,10 @@ tr.exclu .nom{text-decoration:line-through;text-decoration-color:var(--rouille);
             d'un siège ne vaut plus à la manche suivante.</p>
           </div>
         </div>
-      </section>
+      </details>
 
       <!-- ============ LE DÉBAT ============ -->
-      <section class="art">
-        <h3><span class="num">Article 3</span> Le débat contradictoire</h3>
+      <details class="art art-pli"><summary><span class="num">Article 3</span> Le débat contradictoire</summary>
         <p>Deux participants reçoivent la parole et <b>une position imposée</b> sur une motion — l'un pour,
         l'autre contre. Nul ne choisit son camp. Ils sont installés <b>face à face</b> : pour tout auditeur,
         leurs deux voix arrivent donc de directions nettement séparées.</p>
@@ -1270,22 +1311,20 @@ tr.exclu .nom{text-decoration:line-through;text-decoration-color:var(--rouille);
         <p class="art-note"><b>Le piège.</b> Quand vous avez la parole, votre voix sort de votre siège :
         une émission venue de votre direction vous sera imputée aussitôt. La bonne fenêtre n'est donc pas
         votre temps de parole, mais <b>celui de votre contradicteur</b>.</p>
-      </section>
+      </details>
 
       <!-- ============ MOTION D'ORDRE ============ -->
-      <section class="art">
-        <h3><span class="num">Article 4</span> La motion d'ordre</h3>
+      <details class="art art-pli"><summary><span class="num">Article 4</span> La motion d'ordre</summary>
         <p>Un membre de la salle peut, <b>une fois par partie</b>, interrompre le débat et obtenir quinze
         secondes de parole pleine. Le chronomètre du débat est suspendu : personne n'est privé de son temps.
         Le motionnaire reste anonyme.</p>
         <p class="art-note">Le prix est lourd : pendant ces quinze secondes vous êtes <b>la seule voix de
         la pièce</b>, donc parfaitement repérable — et vous offrez à toute la table une couverture idéale.
         Accuser quelqu'un à voix haute est précisément le moment que les autres attendaient.</p>
-      </section>
+      </details>
 
       <!-- ============ LES PIÈCES SONORES ============ -->
-      <section class="art">
-        <h3><span class="num">Article 5</span> Les pièces sonores</h3>
+      <details class="art art-pli"><summary><span class="num">Article 5</span> Les pièces sonores</summary>
         <p>Chacun en dispose d'au moins une, y compris ceux qui sont hors de cause : <b>brouiller les
         pistes est un droit</b>, et souvent une bonne idée. Un délai de <b>quinze secondes</b> sépare deux
         émissions du même participant.</p>
@@ -1308,11 +1347,10 @@ tr.exclu .nom{text-decoration:line-through;text-decoration-color:var(--rouille);
         </svg>
         <p class="art-note">Ce n'est pas un réglage : c'est une <b>propriété physique mesurée</b> de chaque
         son. Un son grave et mou est objectivement plus difficile à localiser qu'un son franc et large bande.</p>
-      </section>
+      </details>
 
       <!-- ============ LA PRESSION ============ -->
-      <section class="art">
-        <h3><span class="num">Article 6</span> La pression intestinale</h3>
+      <details class="art art-pli"><summary><span class="num">Article 6</span> La pression intestinale</summary>
         <p>Elle ne concerne que ceux qui sont à l'origine des faits, et n'est visible que d'eux. Elle monte
         pendant toute la séance.</p>
         <svg viewBox="0 0 560 132" class="sch">
@@ -1332,11 +1370,10 @@ tr.exclu .nom{text-decoration:line-through;text-decoration-color:var(--rouille);
           <text x="0" y="124" class="sch-t2">à votre position, au moment que vous n'auriez pas choisi. Zéro point.</text>
         </svg>
         <p class="art-note">La question n'est donc jamais <em>faut-il émettre</em>, mais <b>à quel moment</b>.</p>
-      </section>
+      </details>
 
       <!-- ============ SCRUTIN ============ -->
-      <section class="art">
-        <h3><span class="num">Article 7</span> Le scrutin et le barème</h3>
+      <details class="art art-pli"><summary><span class="num">Article 7</span> Le scrutin et le barème</summary>
         <p>Une voix par participant, portée sur un siège. L'exclusion est prononcée à partir de deux voix
         concordantes et en cas de majorité nette. Des voix dispersées ne produisent aucune exclusion.</p>
         <table class="bareme">
@@ -1356,11 +1393,10 @@ tr.exclu .nom{text-decoration:line-through;text-decoration-color:var(--rouille);
         </table>
         <p class="art-note">Attirer les soupçons sans y rester est profitable ; un participant exclu ne
         marque rien du tout. Et le Comité rémunère la prise de risque, jamais la prudence.</p>
-      </section>
+      </details>
 
       <!-- ============ L'ÉCRAN ============ -->
-      <section class="art">
-        <h3><span class="num">Article 8</span> Ce que montre l'écran</h3>
+      <details class="art art-pli"><summary><span class="num">Article 8</span> Ce que montre l'écran</summary>
         <p>L'écran ne montre que ce qui sert à la phase en cours, dans votre rôle. Si un élément
         disparaît, ce n'est pas une panne : c'est qu'il n'a rien à vous apprendre à cet instant.</p>
         <p><b>À l'ouverture</b> — un panneau annonce votre rôle et les trois gestes qui comptent. Il se
@@ -1375,11 +1411,10 @@ tr.exclu .nom{text-decoration:line-through;text-decoration-color:var(--rouille);
         transmis. Il survit à un rechargement de page.</p>
         <p class="art-note">Le plan de salle est votre unique instrument. Les pastilles vous disent qui
         parle, les positions vous disent d'où. Le reste, c'est de la mise en scène administrative.</p>
-      </section>
+      </details>
 
       <!-- ============ TECHNIQUE ============ -->
-      <section class="art">
-        <h3><span class="num">Article 9</span> Dispositions techniques</h3>
+      <details class="art art-pli"><summary><span class="num">Article 9</span> Dispositions techniques</summary>
         <p><b>Essai acoustique</b> — en salle d'attente, avant toute séance. Deux bips de contrôle
         vérifient la stéréo, puis un souffle parcourt les cinq positions.</p>
         <p><b>Seuil du micro</b> — la jauge passe au vert quand votre micro s'ouvre. Montez le seuil
@@ -1404,7 +1439,7 @@ tr.exclu .nom{text-decoration:line-through;text-decoration-color:var(--rouille);
         de l'appareil — le casque reste alors en stéréo — ou jouez en <b>filaire</b>. Le jeu détecte
         le cas et vous prévient. <b>Sur téléphone, la consigne est la même</b> : le micro de l'appareil,
         jamais celui du casque.</p>
-      </section>
+      </details>
 
       <p class="regl-pied">Fait en séance — le Secrétariat · Form. PV-6 · Éd. août 2026</p>
     </div>
